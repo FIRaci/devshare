@@ -52,4 +52,27 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
       name: t.String({ minLength: 3, maxLength: 21 }),
       description: t.Optional(t.String())
     })
+  })
+
+  // DELETE a subreddit (Admin only)
+  .delete("/:name", async ({ params: { name }, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const user = await db.user.findUnique({ where: { id: userId } });
+    const sub = await db.subreddit.findUnique({ where: { name } });
+    if (!sub || !user) { set.status = 404; return { error: "Not found" }; }
+
+    if (user.role !== "ADMIN") {
+      set.status = 403; return { error: "Forbidden" };
+    }
+
+    try {
+      // Delete associated posts first to avoid foreign key constraints
+      await db.post.deleteMany({ where: { subredditId: sub.id } });
+      await db.subreddit.delete({ where: { name } });
+      return { success: true };
+    } catch (e) {
+      console.error(e);
+      set.status = 500; return { error: "Could not delete community" };
+    }
   });

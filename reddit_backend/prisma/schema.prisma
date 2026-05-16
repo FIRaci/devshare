@@ -52,10 +52,10 @@ model Post {
   updatedAt   DateTime @updatedAt
 
   authorId    String
-  author      User     @relation(fields: [authorId], references: [id])
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   subredditId String
-  subreddit   Subreddit @relation(fields: [subredditId], references: [id])
+  subreddit   Subreddit @relation(fields: [subredditId], references: [id], onDelete: Cascade)
 
   comments    Comment[]
   votes       Vote[]
@@ -68,13 +68,13 @@ model Comment {
   updatedAt DateTime @updatedAt
 
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   postId    String
-  post      Post     @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   parentId  String?
-  parent    Comment?  @relation("CommentToComment", fields: [parentId], references: [id])
+  parent    Comment?  @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comment[] @relation("CommentToComment")
 
   votes     Vote[]
@@ -91,13 +91,13 @@ model Vote {
   createdAt DateTime @default(now())
 
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   postId    String?
-  post      Post?    @relation(fields: [postId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   commentId String?
-  comment   Comment? @relation(fields: [commentId], references: [id])
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
   @@unique([userId, commentId])

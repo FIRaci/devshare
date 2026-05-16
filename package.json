@@ -6,7 +6,7 @@
     "start-db": "docker-compose up -d",
     "dev:backend": "cd reddit_backend && \"C:\\Users\\TSC\\.bun\\bin\\bun.exe\" run --watch src/index.ts",
     "dev:frontend": "cd reddit_frontend && npm run dev",
-    "dev": "npm run start-db && npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
+    "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
   },
   "dependencies": {
     "concurrently": "^8.2.2"

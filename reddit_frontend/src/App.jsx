@@ -98,7 +98,7 @@ function CommentItem({ comment, depth=0, onReply, onAuthRequired }) {
 }
 
 // ── PostCard ─────────────────────────────────────────────────────────────────
-function PostCard({ post:init, onClick, onAuthRequired, onAction }) {
+function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick }) {
   const { user } = useAuth()
   const [post,setPost]=useState(init)
   useEffect(()=>setPost(init),[init])
@@ -117,7 +117,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction }) {
     <motion.div className="post-card" initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} whileHover={{y:-1}} layout>
       <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
       <div className="post-body" onClick={onClick}>
-        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-text">u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
+        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
         <h3 className="post-title">{post.title}</h3>
         {post.content&&<p className="post-excerpt">{post.content}</p>}
         {post.communityNote && (
@@ -143,7 +143,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction }) {
 }
 
 // ── PostDetail ────────────────────────────────────────────────────────────────
-function PostDetail({ post:init, onBack, onAuthRequired, onAction }) {
+function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }) {
   const { user } = useAuth()
   const [post,setPost]=useState(init)
   const [comments,setComments]=useState([])
@@ -172,7 +172,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction }) {
       <div className="post-card detail-card">
         <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
         <div className="post-body">
-          <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-text">u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
+          <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
           <h1 className="post-title-full">{post.title}</h1>
           {post.content&&<p className="post-content-full">{post.content}</p>}
           {post.communityNote && (
@@ -250,18 +250,25 @@ export default function App() {
     }catch{toast.error('Failed to load')}finally{setLoading(false)}
   }
 
+  const [submittingPost,setSubmittingPost]=useState(false)
+  const [submittingSub,setSubmittingSub]=useState(false)
+
   const submitPost=async(e)=>{
-    e.preventDefault()
-    const res=await fetch(`${API}/posts`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:newPost.title,content:newPost.content,subredditId:newPost.subredditId})})
-    const d=await res.json(); if(!res.ok)return toast.error(d.error??'Failed')
-    toast.success('Post created!');setShowCreatePost(false);setNewPost({title:'',content:'',subredditId:''});fetchAll()
+    e.preventDefault(); if(submittingPost) return; setSubmittingPost(true); const tId = toast.loading('Posting...')
+    try {
+      const res=await fetch(`${API}/posts`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({title:newPost.title,content:newPost.content,subredditId:newPost.subredditId})})
+      const d=await res.json(); if(!res.ok){ toast.error(d.error??'Failed', {id: tId}); return }
+      toast.success('Post created!', {id: tId}); setShowCreatePost(false); setNewPost({title:'',content:'',subredditId:''}); fetchAll()
+    } catch { toast.error('Failed to connect', {id: tId}) } finally { setSubmittingPost(false) }
   }
 
   const submitSub=async(e)=>{
-    e.preventDefault()
-    const res=await fetch(`${API}/subreddits`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newSub.name,description:newSub.description})})
-    const d=await res.json(); if(!res.ok)return toast.error(d.error??'Failed')
-    toast.success(`d/${newSub.name} created!`);setShowCreateSub(false);setNewSub({name:'',description:''});fetchAll()
+    e.preventDefault(); if(submittingSub) return; setSubmittingSub(true); const tId = toast.loading('Creating...')
+    try {
+      const res=await fetch(`${API}/subreddits`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({name:newSub.name,description:newSub.description})})
+      const d=await res.json(); if(!res.ok){ toast.error(d.error??'Failed', {id: tId}); return }
+      toast.success(`d/${newSub.name} created!`, {id: tId}); setShowCreateSub(false); setNewSub({name:'',description:''}); fetchAll()
+    } catch { toast.error('Failed to connect', {id: tId}) } finally { setSubmittingSub(false) }
   }
 
   const toggleJoin=(n)=>setJoinedSubs(prev=>{const nx=new Set(prev);if(nx.has(n)){nx.delete(n);toast(`Left d/${n}`)}else{nx.add(n);toast.success(`Joined d/${n}!`)};return nx})
@@ -342,11 +349,14 @@ export default function App() {
             {profileUser ? (
               <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser}/>
             ) : selectedPost ? (
-              <PostDetail key="detail" post={selectedPost} onBack={()=>setSelectedPost(null)} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>setActionModal({type, post})}/>
+              <PostDetail key="detail" post={selectedPost} onBack={()=>setSelectedPost(null)} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>setActionModal({type, post})} onUserClick={setProfileUser}/>
             ) : (
               <motion.div key="feed" initial={{opacity:0}} animate={{opacity:1}}>
                 <div className="feed-header">
                   <h2>{selectedSub?`d/${selectedSub}`:'Home'}</h2>
+                  {selectedSub && user?.role === 'ADMIN' && (
+                    <button className="action-btn" onClick={() => setActionModal({ type: 'DELETE_SUB', post: { subreddit: { name: selectedSub } } })} style={{color:'var(--red)', marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '4px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px'}}><X size={14}/> Delete</button>
+                  )}
                   <div className="sort-tabs">
                     {[{id:'hot',icon:<Flame size={13}/>,label:'Hot'},{id:'new',icon:<Clock size={13}/>,label:'New'},{id:'top',icon:<Award size={13}/>,label:'Top'}].map(s=>(
                       <button key={s.id} className={`sort-tab ${sortBy===s.id?'active':''}`} onClick={()=>setSortBy(s.id)}>{s.icon}{s.label}</button>
@@ -363,7 +373,7 @@ export default function App() {
                   ?<div className="skeleton-list">{[1,2,3].map(n=><div key={n} className="skeleton"/>)}</div>
                   :displayPosts.length===0
                     ?<div className="empty-feed"><LayoutGrid size={40}/><p>No posts found</p><button className="btn-post" onClick={()=>{if(!user){setShowAuth(true);return};setShowCreatePost(true)}}>Create first post</button></div>
-                    :displayPosts.map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={(type, p)=>setActionModal({type, post: p})}/>)
+                    :displayPosts.map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={(type, p)=>setActionModal({type, post: p})} onUserClick={setProfileUser}/>)
                 }
               </motion.div>
             )}
@@ -417,7 +427,7 @@ export default function App() {
                 <textarea placeholder="Text (optional)" value={newPost.content} onChange={e=>setNewPost(p=>({...p,content:e.target.value}))} rows={5}/>
                 <div className="modal-footer">
                   <button type="button" className="btn-outline" onClick={()=>setShowCreatePost(false)}>Cancel</button>
-                  <button type="submit" className="btn-post">Post</button>
+                  <button type="submit" className="btn-post" disabled={submittingPost}>{submittingPost ? 'Posting...' : 'Post'}</button>
                 </div>
               </form>
             </motion.div>
@@ -433,7 +443,7 @@ export default function App() {
                 <textarea placeholder="Description (optional)" value={newSub.description} onChange={e=>setNewSub(p=>({...p,description:e.target.value}))} rows={3}/>
                 <div className="modal-footer">
                   <button type="button" className="btn-outline" onClick={()=>setShowCreateSub(false)}>Cancel</button>
-                  <button type="submit" className="btn-post">Create</button>
+                  <button type="submit" className="btn-post" disabled={submittingSub}>{submittingSub ? 'Creating...' : 'Create'}</button>
                 </div>
               </form>
             </motion.div>
@@ -443,12 +453,14 @@ export default function App() {
           <div className="modal-backdrop" onClick={()=>setActionModal(null)}>
             <motion.div className="modal" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
               <div className="modal-head">
-                <h3>{actionModal.type === 'REPORT' ? 'Report Post' : actionModal.type === 'DELETE' ? 'Confirm Deletion' : 'Add Community Note'}</h3>
+                <h3>{actionModal.type === 'REPORT' ? 'Report Post' : actionModal.type === 'DELETE' ? 'Confirm Deletion' : actionModal.type === 'DELETE_SUB' ? 'Delete Community' : 'Add Community Note'}</h3>
                 <button onClick={()=>setActionModal(null)}><X size={18}/></button>
               </div>
               <div className="modal-body">
                 {actionModal.type === 'DELETE' ? (
                   <p>Are you sure you want to permanently delete this post? This action cannot be undone.</p>
+                ) : actionModal.type === 'DELETE_SUB' ? (
+                  <p>Are you sure you want to permanently delete d/{actionModal.post.subreddit.name}? This action cannot be undone.</p>
                 ) : (
                   <textarea 
                     autoFocus
@@ -462,7 +474,7 @@ export default function App() {
                   <button className="btn-outline" onClick={()=>setActionModal(null)}>Cancel</button>
                   <button 
                     className="btn-post" 
-                    style={{ background: actionModal.type === 'DELETE' ? 'var(--red)' : 'var(--primary)' }}
+                    style={{ background: (actionModal.type === 'DELETE' || actionModal.type === 'DELETE_SUB') ? 'var(--red)' : 'var(--primary)' }}
                     onClick={async () => {
                       const { type, post } = actionModal;
                       const tid = toast.loading('Processing...');
@@ -475,6 +487,10 @@ export default function App() {
                           await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
                           toast.success('Post deleted', { id: tid });
                           setTimeout(() => window.location.reload(), 1000);
+                        } else if (type === 'DELETE_SUB') {
+                          await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
+                          toast.success('Community deleted', { id: tid });
+                          setTimeout(() => window.location.reload(), 1000);
                         } else if (type === 'NOTE') {
                           if(!actionText.trim()) return toast.error('Note required', { id: tid });
                           await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ communityNote: actionText }) });
@@ -485,7 +501,7 @@ export default function App() {
                       } catch { toast.error('Action failed', { id: tid }); }
                     }}
                   >
-                    {actionModal.type === 'DELETE' ? 'Delete' : 'Submit'}
+                    {(actionModal.type === 'DELETE' || actionModal.type === 'DELETE_SUB') ? 'Delete' : 'Submit'}
                   </button>
                 </div>
               </div>

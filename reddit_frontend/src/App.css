@@ -7,6 +7,8 @@
   --primary-soft: rgba(92,124,250,.1);
   --up-color:     #5C7CFA;
   --down-color:   #F06595;
+  --red:          #FA5252;
+  --red-h:        #F03E3E;
   --bg:           #F1F3F9;
   --surface:      #FFFFFF;
   --surface-2:    #F4F6FB;
@@ -25,6 +27,8 @@
   --primary-soft: rgba(116,143,252,.12);
   --up-color:     #748FFC;
   --down-color:   #F783AC;
+  --red:          #FA5252;
+  --red-h:        #F03E3E;
   --bg:           #0E1117;
   --surface:      #161B27;
   --surface-2:    #1D2333;
@@ -460,4 +464,53 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   font-size:20px;font-weight:800;color:white;
   margin-top:10px;transition:background .2s;
   box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+
+.auth-separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 16px 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.auth-separator::before,
+.auth-separator::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+.auth-separator span {
+  padding: 0 10px;
+}
+
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.google-btn:hover {
+  background: var(--bg);
+  border-color: var(--primary);
+}
+
+.meta-user {
+  cursor: pointer;
+  color: var(--text-2);
+  transition: color 0.15s ease;
+}
+.meta-user:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
