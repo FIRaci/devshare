@@ -123,7 +123,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           mediaType: body.mediaType,
           linkPreview: linkPreview ? linkPreview : undefined,
           attachments: attachments ? attachments : undefined,
-        },
+        } as any,
         include: {
           author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
           subreddit: true,
