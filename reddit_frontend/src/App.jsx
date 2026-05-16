@@ -8,6 +8,7 @@ import ProfilePage from './ProfilePage'
 import './App.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+console.log('Current API Endpoint:', API)
 const timeAgo = (d) => { const diff=Date.now()-new Date(d).getTime(),m=Math.floor(diff/60000); if(m<1)return 'just now'; if(m<60)return `${m}m`; const h=Math.floor(m/60); if(h<24)return `${h}h`; return `${Math.floor(h/24)}d` }
 const applyVote = (votes=[], type, uid='me') => { const ex=votes.find(v=>v.userId===uid); if(ex?.type===type) return votes.filter(v=>v.userId!==uid); return [...votes.filter(v=>v.userId!==uid),{type,userId:uid}] }
 const getScore = (votes=[]) => votes.reduce((a,v)=>a+(v.type==='UP'?1:-1),0)
@@ -288,7 +289,7 @@ export default function App() {
       <Toaster position="bottom-right" toastOptions={{style:{background:'var(--surface)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:'12px',fontSize:'13px'}}}/>
 
       <nav className="navbar">
-        <button className="brand" onClick={navHome}><div className="logo-mark"><Layers size={15} strokeWidth={2.5}/></div><span className="logo-word">DevShare</span></button>
+        <button className="brand" onClick={navHome}><img src="/logo.png" alt="DevShare" style={{ width: 26, height: 26, borderRadius: 6, marginRight: 10 }} /><span className="logo-word">DevShare</span></button>
         <div className="search-wrap">
           <Search size={14} className="s-icon"/>
           <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search posts…"/>

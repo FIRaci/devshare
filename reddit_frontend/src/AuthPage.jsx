@@ -42,7 +42,7 @@ export default function AuthPage({ onClose }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="auth-left">
-          <div className="auth-brand"><Layers size={32} color="white"/></div>
+          <div className="auth-brand"><img src="/logo.png" alt="DevShare" style={{ width: 42, height: 42, borderRadius: 8 }} /></div>
           <h2>DevShare</h2>
           <p>Join the community where developers share, vote, and grow together.</p>
         </div>
