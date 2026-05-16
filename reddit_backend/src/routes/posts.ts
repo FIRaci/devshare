@@ -115,7 +115,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           subredditId: body.subredditId,
           mediaUrl: body.mediaUrl,
           mediaType: body.mediaType,
-          attachments: body.attachments ? JSON.parse(JSON.stringify(body.attachments)) : undefined,
+          attachments: body.attachments ? (body.attachments as any) : undefined,
           linkPreview: linkPreview ? linkPreview : undefined
         },
         include: {
@@ -160,7 +160,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
       attachments: t.Optional(t.Array(t.Object({
         url: t.String(),
         type: t.String(),
-        name: t.Optional(t.String())
+        name: t.String()
       }))),
       linkUrl: t.Optional(t.String())
     })
