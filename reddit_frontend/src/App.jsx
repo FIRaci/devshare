@@ -289,25 +289,7 @@ export default function App() {
       <Toaster position="bottom-right" toastOptions={{style:{background:'var(--surface)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:'12px',fontSize:'13px'}}}/>
 
       <nav className="navbar">
-        <button className="brand" onClick={navHome}>
-          <div className="logo-mark">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="24" height="24">
-              <rect width="48" height="48" rx="11" fill="url(#nav-g1)"/>
-              <defs>
-                <linearGradient id="nav-g1" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#5C7CFA"/>
-                  <stop offset="100%" stopColor="#7950F2"/>
-                </linearGradient>
-              </defs>
-              <line x1="14" y1="24" x2="30" y2="13" stroke="white" strokeWidth="2" strokeOpacity="0.7" strokeLinecap="round"/>
-              <line x1="14" y1="24" x2="30" y2="35" stroke="white" strokeWidth="2" strokeOpacity="0.7" strokeLinecap="round"/>
-              <circle cx="14" cy="24" r="5" fill="white"/>
-              <circle cx="32" cy="13" r="4" fill="white" fillOpacity="0.9"/>
-              <circle cx="32" cy="35" r="4" fill="white" fillOpacity="0.9"/>
-            </svg>
-          </div>
-          <span className="logo-word">DevShare</span>
-        </button>
+        <button className="brand" onClick={navHome}><div className="logo-mark"><Layers size={15} strokeWidth={2.5}/></div><span className="logo-word">DevShare</span></button>
         <div className="search-wrap">
           <Search size={14} className="s-icon"/>
           <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search posts…"/>
