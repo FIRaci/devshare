@@ -274,57 +274,58 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
                 </div>
 
                 <div className="field">
-                  <label>Avatar URL <small style={{opacity:.6}}>(Optional)</small></label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="https://.../avatar.gif"
-                      value={editForm.avatarUrl}
-                      onChange={e => setEditForm(f => ({ ...f, avatarUrl: e.target.value }))}
-                      style={{ flex: 1 }}
-                    />
-                    <label className="btn-outline" style={{ cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Upload size={14}/>
-                      <input type="file" hidden accept="image/*" onChange={e => handleUpload(e, 'avatarUrl')} disabled={uploading}/>
-                    </label>
+                  <label><Palette size={13} style={{marginRight: 4}}/> Avatar & Theme</label>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--surface-hover)', padding: '16px', borderRadius: '12px' }}>
+                    <div className="avatar-preview" style={{ 
+                      background: editForm.avatarUrl ? `url(${editForm.avatarUrl}) center/cover no-repeat` : editForm.avatarColor,
+                      width: '64px', height: '64px', borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '24px', fontWeight: 'bold', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}>
+                      {!editForm.avatarUrl && profile.username[0].toUpperCase()}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      <div className="color-picker-row" style={{ marginBottom: '12px' }}>
+                        {AVATAR_COLORS.map(c => (
+                          <button
+                            key={c}
+                            className={`color-swatch ${editForm.avatarColor === c ? 'selected' : ''}`}
+                            style={{ background: c }}
+                            onClick={(e) => { e.preventDefault(); setEditForm(f => ({ ...f, avatarColor: c })); }}
+                          >
+                            {editForm.avatarColor === c && <Check size={13} color="white" strokeWidth={3}/>}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <label className="btn-outline" style={{ cursor: 'pointer', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                          <Upload size={14}/> {uploading ? 'Uploading...' : (editForm.avatarUrl ? 'Change Avatar' : 'Upload Avatar')}
+                          <input type="file" hidden accept="image/*" onChange={e => handleUpload(e, 'avatarUrl')} disabled={uploading}/>
+                        </label>
+                        {editForm.avatarUrl && (
+                          <button type="button" className="btn-outline" onClick={() => setEditForm(f => ({...f, avatarUrl: ''}))} style={{ color: 'var(--red)', padding: '6px 12px', fontSize: '13px' }}>
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="field">
-                  <label>Banner URL <small style={{opacity:.6}}>(Optional)</small></label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="https://.../banner.png"
-                      value={editForm.bannerUrl}
-                      onChange={e => setEditForm(f => ({ ...f, bannerUrl: e.target.value }))}
-                      style={{ flex: 1 }}
-                    />
-                    <label className="btn-outline" style={{ cursor: 'pointer', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Upload size={14}/>
-                      <input type="file" hidden accept="image/*" onChange={e => handleUpload(e, 'bannerUrl')} disabled={uploading}/>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label><Palette size={13}/> Avatar Color</label>
-                  <div className="color-picker-row">
-                    {AVATAR_COLORS.map(c => (
-                      <button
-                        key={c}
-                        className={`color-swatch ${editForm.avatarColor === c ? 'selected' : ''}`}
-                        style={{ background: c }}
-                        onClick={() => setEditForm(f => ({ ...f, avatarColor: c }))}
-                      >
-                        {editForm.avatarColor === c && <Check size={13} color="white" strokeWidth={3}/>}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="avatar-preview" style={{ 
-                    background: editForm.avatarUrl ? `url(${editForm.avatarUrl}) center/cover no-repeat` : editForm.avatarColor 
-                  }}>
-                    {!editForm.avatarUrl && profile.username[0].toUpperCase()}
+                  <label>Profile Banner</label>
+                  <div style={{ border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', position: 'relative', height: '120px', background: editForm.bannerUrl ? `url(${editForm.bannerUrl}) center/cover no-repeat` : 'var(--surface-hover)' }}>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: editForm.bannerUrl ? 'rgba(0,0,0,0.3)' : 'transparent', gap: '8px' }}>
+                       <label className="btn-outline" style={{ cursor: 'pointer', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface)', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                         <Upload size={14}/> {editForm.bannerUrl ? 'Change Banner' : 'Upload Banner'}
+                         <input type="file" hidden accept="image/*" onChange={e => handleUpload(e, 'bannerUrl')} disabled={uploading}/>
+                       </label>
+                       {editForm.bannerUrl && (
+                         <button type="button" className="btn-outline" onClick={() => setEditForm(f => ({...f, bannerUrl: ''}))} style={{ background: 'var(--surface)', color: 'var(--red)', padding: '8px 16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                           Remove
+                         </button>
+                       )}
+                    </div>
                   </div>
                 </div>
 
