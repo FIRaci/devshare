@@ -81,12 +81,23 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
       const data = await res.json()
       if (!res.ok) { toast.error(data.error ?? 'Failed'); return }
       
-      const updatedUsername = data.username
-      if (updatedUsername !== username) {
-        if (isMe) updateUser({ username: updatedUsername })
-        if (onUsernameChange) onUsernameChange(updatedUsername)
-      } else {
-        setProfile(p => ({ ...p, ...data }))
+      // Always update local profile state
+      setProfile(p => ({ ...p, ...data }))
+      
+      // Always sync AuthContext so navbar avatar/username update immediately
+      if (isMe) {
+        updateUser({
+          username: data.username,
+          bio: data.bio,
+          avatarColor: data.avatarColor,
+          avatarUrl: data.avatarUrl,
+          bannerUrl: data.bannerUrl,
+        })
+      }
+      
+      // Handle username change navigation
+      if (data.username !== username && onUsernameChange) {
+        onUsernameChange(data.username)
       }
 
       setShowEdit(false)
