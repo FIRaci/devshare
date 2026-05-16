@@ -220,10 +220,50 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
 
     try {
       await db.post.delete({ where: { id } });
+      invalidateCache('posts:');
+      invalidateCache('subs:');
       return { message: "Deleted" };
     } catch {
       set.status = 500; return { error: "Failed to delete" };
     }
+  })
+
+  // PATCH edit a post (Author only)
+  .patch("/:id", async ({ params: { id }, body, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const post = await db.post.findUnique({ where: { id } });
+    if (!post) { set.status = 404; return { error: "Not found" }; }
+
+    if (post.authorId !== userId) {
+      set.status = 403; return { error: "Forbidden" };
+    }
+
+    try {
+      const updatedPost = await db.post.update({
+        where: { id },
+        data: {
+          title: body.title !== undefined ? body.title : undefined,
+          content: body.content !== undefined ? body.content : undefined,
+        },
+        include: {
+          author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
+          subreddit: true,
+          _count: { select: { comments: true, votes: true } },
+          votes: { select: { type: true, userId: true } }
+        }
+      });
+      invalidateCache('posts:');
+      invalidateCache('subs:');
+      return updatedPost;
+    } catch {
+      set.status = 500; return { error: "Failed to edit" };
+    }
+  }, {
+    body: t.Object({
+      title: t.Optional(t.String({ minLength: 1 })),
+      content: t.Optional(t.String()),
+    })
   })
 
   // PATCH add community note (Admin only)

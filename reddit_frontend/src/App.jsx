@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
-import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Image as ImageIcon, Video, Link as LinkIcon } from 'lucide-react'
+import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Image as ImageIcon, Video, Link as LinkIcon, Edit3, Trash2 } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import AuthPage from './AuthPage'
 import ProfilePage from './ProfilePage'
@@ -63,7 +63,7 @@ function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) 
 }
 
 // ── CommentItem ──────────────────────────────────────────────────────────────
-function CommentItem({ comment, depth=0, onReply, onAuthRequired }) {
+function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction }) {
   const { user } = useAuth()
   const [showReply, setShowReply] = useState(false)
   const [replyText, setReplyText] = useState('')
@@ -103,6 +103,12 @@ function CommentItem({ comment, depth=0, onReply, onAuthRequired }) {
         <p className="c-content">{comment.content}</p>
         <div className="comment-actions">
           <button className="reply-btn" onClick={handleReplyClick}><MessageSquare size={11}/> Reply</button>
+          {(user?.role === 'ADMIN' || user?.username === comment.author?.username) && (
+            <>
+              <button className="reply-btn" onClick={() => onAction?.('EDIT_COMMENT', comment)} style={{color:'var(--text-2)'}}>Edit</button>
+              <button className="reply-btn" onClick={() => onAction?.('DELETE_COMMENT', comment)} style={{color:'var(--red)'}}>Delete</button>
+            </>
+          )}
         </div>
         <AnimatePresence>
           {showReply&&<motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}} className="reply-box">
@@ -113,7 +119,7 @@ function CommentItem({ comment, depth=0, onReply, onAuthRequired }) {
             </div>
           </motion.div>}
         </AnimatePresence>
-        {comment.replies?.length>0&&<div className="replies">{comment.replies.map(r=><CommentItem key={r.id} comment={{...r,postId:comment.postId}} depth={depth+1} onReply={onReply} onAuthRequired={onAuthRequired}/>)}</div>}
+        {comment.replies?.length>0&&<div className="replies">{comment.replies.map(r=><CommentItem key={r.id} comment={{...r,postId:comment.postId}} depth={depth+1} onReply={onReply} onAuthRequired={onAuthRequired} onAction={onAction}/>)}</div>}
       </div>
     </div>
   )
@@ -208,11 +214,14 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
           )}
           <div className="post-actions">
             <button className="action-btn" onClick={e=>{e.stopPropagation(); if(!user){onAuthRequired?.();return} onAction('REPORT', post)}} style={{color:'var(--red)'}}>Report</button>
-            {user?.role === 'ADMIN' && (
+            {(user?.role === 'ADMIN' || user?.username === post.author?.username) && (
               <>
+                <button className="action-btn" onClick={e=>{e.stopPropagation(); onAction('EDIT_POST', post)}} style={{color:'var(--text-2)'}}>Edit</button>
                 <button className="action-btn" onClick={e=>{e.stopPropagation(); onAction('DELETE', post)}} style={{color:'var(--red)'}}>Delete</button>
-                <button className="action-btn" onClick={e=>{e.stopPropagation(); onAction('NOTE', post)}} style={{color:'var(--primary)'}}>Add Note</button>
               </>
+            )}
+            {user?.role === 'ADMIN' && (
+              <button className="action-btn" onClick={e=>{e.stopPropagation(); onAction('NOTE', post)}} style={{color:'var(--primary)'}}>Add Note</button>
             )}
           </div>
         </div>
@@ -231,7 +240,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
         }
         {comments.length===0
           ?<div className="empty-comments"><MessageSquare size={34}/><p>No comments yet.</p></div>
-          :<div className="comment-list">{comments.map(c=><CommentItem key={c.id} comment={{...c,postId:post.id}} onReply={fetch2} onAuthRequired={onAuthRequired}/>)}</div>
+          :<div className="comment-list">{comments.map(c=><CommentItem key={c.id} comment={{...c,postId:post.id}} onReply={fetch2} onAuthRequired={onAuthRequired} onAction={onAction}/>)}</div>
         }
       </div>
     </motion.div>
@@ -269,6 +278,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen]=useState(false)
   const [actionModal,setActionModal]=useState(null) // { type: 'REPORT'|'DELETE'|'NOTE', post }
   const [actionText,setActionText]=useState('')
+  const [actionTitle,setActionTitle]=useState('')
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs] = useState(false)
 
@@ -497,7 +507,7 @@ export default function App() {
             {profileUser ? (
               <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser} onProfileSaved={fetchAll}/>
             ) : selectedPost ? (
-              <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{setSelectedPost(null); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>setActionModal({type, post})} onUserClick={setProfileUser}/>
+              <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{setSelectedPost(null); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>{setActionModal({type, post}); if(type==='EDIT_POST'){setActionTitle(post.title); setActionText(post.content||'');} else if(type==='EDIT_COMMENT'){setActionText(post.content||'');} else {setActionText(''); setActionTitle('');}}} onUserClick={setProfileUser}/>
             ) : (
               <motion.div key="feed" initial={{opacity:0}} animate={{opacity:1}}>
                 <div className="feed-header">
@@ -625,28 +635,33 @@ export default function App() {
           <div className="modal-backdrop" onClick={()=>setActionModal(null)}>
             <motion.div className="modal" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
               <div className="modal-head">
-                <h3>{actionModal.type === 'REPORT' ? 'Report Post' : actionModal.type === 'DELETE' ? 'Confirm Deletion' : actionModal.type === 'DELETE_SUB' ? 'Delete Community' : 'Add Community Note'}</h3>
+                <h3>{actionModal.type === 'REPORT' ? 'Report Post' : actionModal.type === 'DELETE' ? 'Confirm Deletion' : actionModal.type === 'DELETE_SUB' ? 'Delete Community' : actionModal.type === 'DELETE_COMMENT' ? 'Delete Comment' : actionModal.type === 'EDIT_POST' ? 'Edit Post' : actionModal.type === 'EDIT_COMMENT' ? 'Edit Comment' : 'Add Community Note'}</h3>
                 <button onClick={()=>setActionModal(null)}><X size={18}/></button>
               </div>
               <div className="modal-body">
-                {actionModal.type === 'DELETE' ? (
-                  <p>Are you sure you want to permanently delete this post? This action cannot be undone.</p>
+                {(actionModal.type === 'DELETE' || actionModal.type === 'DELETE_COMMENT') ? (
+                  <p>Are you sure you want to permanently delete this? This action cannot be undone.</p>
                 ) : actionModal.type === 'DELETE_SUB' ? (
                   <p>Are you sure you want to permanently delete d/{actionModal.post.subreddit.name}? This action cannot be undone.</p>
                 ) : (
-                  <textarea 
-                    autoFocus
-                    placeholder={actionModal.type === 'REPORT' ? "Reason for reporting..." : "Enter your community note..."} 
-                    value={actionText} 
-                    onChange={e=>setActionText(e.target.value)} 
-                    rows={4} 
-                  />
+                  <>
+                    {actionModal.type === 'EDIT_POST' && (
+                      <input type="text" placeholder="Title *" value={actionTitle} onChange={e=>setActionTitle(e.target.value)} required style={{marginBottom:10}}/>
+                    )}
+                    <textarea 
+                      autoFocus
+                      placeholder={actionModal.type === 'REPORT' ? "Reason for reporting..." : actionModal.type.startsWith('EDIT') ? "Content..." : "Enter your community note..."} 
+                      value={actionText} 
+                      onChange={e=>setActionText(e.target.value)} 
+                      rows={4} 
+                    />
+                  </>
                 )}
                 <div className="modal-footer" style={{ marginTop: 16 }}>
                   <button className="btn-outline" onClick={()=>setActionModal(null)}>Cancel</button>
                   <button 
                     className="btn-post" 
-                    style={{ background: (actionModal.type === 'DELETE' || actionModal.type === 'DELETE_SUB') ? 'var(--red)' : 'var(--primary)' }}
+                    style={{ background: (actionModal.type.startsWith('DELETE')) ? 'var(--red)' : 'var(--primary)' }}
                     onClick={async () => {
                       const { type, post } = actionModal;
                       const tid = toast.loading('Processing...');
@@ -659,23 +674,44 @@ export default function App() {
                           await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
                           toast.success('Post deleted', { id: tid });
                           setSelectedPost(null);
-                          fetchAll();
+                          fetchAll(false);
+                        } else if (type === 'DELETE_COMMENT') {
+                          await fetch(`${API}/comments/${post.id}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
+                          toast.success('Comment deleted', { id: tid });
+                          if(selectedPost) setSelectedPost({...selectedPost}); // force reload
                         } else if (type === 'DELETE_SUB') {
                           await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
                           toast.success('Community deleted', { id: tid });
                           navHome();
-                          fetchAll();
+                          fetchAll(false);
                         } else if (type === 'NOTE') {
                           if(!actionText.trim()) return toast.error('Note required', { id: tid });
                           await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ communityNote: actionText }) });
                           toast.success('Note added!', { id: tid });
-                          fetchAll();
+                          if(selectedPost) setSelectedPost({...selectedPost, communityNote: actionText});
+                          fetchAll(false);
+                        } else if (type === 'EDIT_POST') {
+                          if(!actionTitle.trim()) return toast.error('Title required', { id: tid });
+                          const res = await fetch(`${API}/posts/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ title: actionTitle, content: actionText }) });
+                          if(res.ok) {
+                            const updated = await res.json();
+                            toast.success('Post updated', { id: tid });
+                            if(selectedPost) setSelectedPost(updated);
+                            fetchAll(false);
+                          } else throw new Error();
+                        } else if (type === 'EDIT_COMMENT') {
+                          if(!actionText.trim()) return toast.error('Content required', { id: tid });
+                          const res = await fetch(`${API}/comments/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ content: actionText }) });
+                          if(res.ok) {
+                            toast.success('Comment updated', { id: tid });
+                            if(selectedPost) setSelectedPost({...selectedPost}); // Force reload comments
+                          } else throw new Error();
                         }
-                        setActionModal(null); setActionText('');
+                        setActionModal(null); setActionText(''); setActionTitle('');
                       } catch { toast.error('Action failed', { id: tid }); }
                     }}
                   >
-                    {(actionModal.type === 'DELETE' || actionModal.type === 'DELETE_SUB') ? 'Delete' : 'Submit'}
+                    {(actionModal.type.startsWith('DELETE')) ? 'Delete' : 'Submit'}
                   </button>
                 </div>
               </div>

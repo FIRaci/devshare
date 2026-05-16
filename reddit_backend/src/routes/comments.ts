@@ -135,4 +135,54 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     body: t.Object({
       type: t.Enum({ UP: "UP", DOWN: "DOWN" })
     })
+  })
+
+  // DELETE a comment (Admin or Author)
+  .delete("/:id", async ({ params: { id }, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const user = await db.user.findUnique({ where: { id: userId } });
+    const comment = await db.comment.findUnique({ where: { id } });
+    if (!comment || !user) { set.status = 404; return { error: "Not found" }; }
+
+    if (comment.authorId !== user.id && user.role !== "ADMIN") {
+      set.status = 403; return { error: "Forbidden" };
+    }
+
+    try {
+      await db.comment.delete({ where: { id } });
+      return { message: "Deleted" };
+    } catch {
+      set.status = 500; return { error: "Failed to delete" };
+    }
+  })
+
+  // PATCH edit a comment (Author only)
+  .patch("/:id", async ({ params: { id }, body, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const comment = await db.comment.findUnique({ where: { id } });
+    if (!comment) { set.status = 404; return { error: "Not found" }; }
+
+    if (comment.authorId !== userId) {
+      set.status = 403; return { error: "Forbidden" };
+    }
+
+    try {
+      const updated = await db.comment.update({
+        where: { id },
+        data: { content: body.content },
+        include: {
+          author: { select: { id: true, username: true } },
+          votes: { select: { type: true, userId: true } }
+        }
+      });
+      return updated;
+    } catch {
+      set.status = 500; return { error: "Failed to edit" };
+    }
+  }, {
+    body: t.Object({
+      content: t.String({ minLength: 1 })
+    })
   });
