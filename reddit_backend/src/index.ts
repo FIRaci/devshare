@@ -28,6 +28,9 @@ const app = new Elysia()
       file: t.File()
     })
   })
+  .get("/uploads/:filename", ({ params: { filename } }) => {
+    return Bun.file(`public/uploads/${filename}`);
+  })
   .use(authRoutes)
   .use(postRoutes)
   .use(subredditRoutes)
