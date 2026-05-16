@@ -8,6 +8,7 @@ import { commentRoutes } from "./routes/comments";
 import { authRoutes } from "./routes/auth";
 import { reportRoutes } from "./routes/reports";
 import { notificationRoutes } from "./routes/notifications";
+import { db } from "./db";
 import { mkdir } from "fs/promises";
 
 const app = new Elysia()
