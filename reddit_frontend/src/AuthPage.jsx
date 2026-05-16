@@ -42,7 +42,16 @@ export default function AuthPage({ onClose }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="auth-left">
-          <div className="auth-brand"><img src="/logo.png" alt="DevShare" style={{ width: 42, height: 42, borderRadius: 8 }} /></div>
+          <div className="auth-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" width="48" height="48">
+              <rect width="48" height="48" rx="12" fill="rgba(255,255,255,0.15)"/>
+              <line x1="14" y1="24" x2="30" y2="13" stroke="white" strokeWidth="2.5" strokeOpacity="0.8" strokeLinecap="round"/>
+              <line x1="14" y1="24" x2="30" y2="35" stroke="white" strokeWidth="2.5" strokeOpacity="0.8" strokeLinecap="round"/>
+              <circle cx="14" cy="24" r="5.5" fill="white"/>
+              <circle cx="32" cy="13" r="4.5" fill="white" fillOpacity="0.9"/>
+              <circle cx="32" cy="35" r="4.5" fill="white" fillOpacity="0.9"/>
+            </svg>
+          </div>
           <h2>DevShare</h2>
           <p>Join the community where developers share, vote, and grow together.</p>
         </div>
