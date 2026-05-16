@@ -215,7 +215,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { user, logout } = useAuth()
+  const { user, logout, updateUser } = useAuth()
   const [posts,setPosts]=useState([])
   const [subreddits,setSubreddits]=useState([])
   const [loading,setLoading]=useState(true)
@@ -224,6 +224,13 @@ export default function App() {
   const [selectedPost,setSelectedPost]=useState(null)
   const [profileUser,setProfileUser]=useState(null)
   const [joinedSubs,setJoinedSubs]=useState(new Set())
+  useEffect(() => {
+    if (user?.subscriptions) {
+      setJoinedSubs(new Set(user.subscriptions.map(s => subreddits.find(sub => sub.id === s.subredditId)?.name).filter(Boolean)))
+    } else {
+      setJoinedSubs(new Set())
+    }
+  }, [user, subreddits])
   const [showAuth,setShowAuth]=useState(false)
   const [showUserMenu,setShowUserMenu]=useState(false)
   const [showCreatePost,setShowCreatePost]=useState(false)
@@ -235,6 +242,17 @@ export default function App() {
   const [leftCollapsed,setLeftCollapsed]=useState(false)
   const [actionModal,setActionModal]=useState(null) // { type: 'REPORT'|'DELETE'|'NOTE', post }
   const [actionText,setActionText]=useState('')
+  const [notifications, setNotifications] = useState([])
+  const [showNotifs, setShowNotifs] = useState(false)
+
+  const fetchNotifs = async () => {
+    if (!user) { setNotifications([]); return; }
+    try {
+      const res = await fetch(`${API}/notifications`, { headers: { 'x-user-id': user.id } })
+      if (res.ok) setNotifications(await res.json())
+    } catch {}
+  }
+  useEffect(() => { fetchNotifs() }, [user])
 
   // Right sidebar only shows on main feed (not profile, not post detail)
   const showRightSidebar = !profileUser && !selectedPost
@@ -272,7 +290,33 @@ export default function App() {
     } catch { toast.error('Failed to connect', {id: tId}) } finally { setSubmittingSub(false) }
   }
 
-  const toggleJoin=(n)=>setJoinedSubs(prev=>{const nx=new Set(prev);if(nx.has(n)){nx.delete(n);toast(`Left d/${n}`)}else{nx.add(n);toast.success(`Joined d/${n}!`)};return nx})
+  const toggleJoin=async(n)=>{
+    if (!user) { setShowAuth(true); return; }
+    const sub = subreddits.find(s => s.name === n);
+    if (!sub) return;
+
+    const prev = new Set(joinedSubs);
+    const nx = new Set(prev);
+    if(nx.has(n)) nx.delete(n); else nx.add(n);
+    setJoinedSubs(nx);
+
+    const oldSubs = user.subscriptions || [];
+    const newSubs = nx.has(n) 
+      ? [...oldSubs, { subredditId: sub.id }] 
+      : oldSubs.filter(s => s.subredditId !== sub.id);
+    updateUser({ subscriptions: newSubs });
+
+    try {
+      const res = await fetch(`${API}/subreddits/${n}/join`, { method: 'POST', headers: { 'x-user-id': user.id } });
+      if (!res.ok) throw new Error();
+      toast(nx.has(n) ? `Joined d/${n}!` : `Left d/${n}`);
+      fetchAll();
+    } catch {
+      setJoinedSubs(prev);
+      updateUser({ subscriptions: oldSubs });
+      toast.error('Failed to update subscription');
+    }
+  }
 
   const displayPosts=[...posts]
     .filter(p=>!searchQuery||p.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -297,7 +341,37 @@ export default function App() {
         </div>
         <div className="nav-actions">
           <button className="icon-btn" onClick={()=>setIsDark(d=>!d)}>{isDark?<Sun size={18}/>:<Moon size={18}/>}</button>
-          <button className="icon-btn" onClick={()=>toast('No notifications 🔔')}><Bell size={18}/></button>
+          <div className="notif-wrap" style={{position:'relative'}}>
+            <button className="icon-btn" onClick={()=>{if(!user)setShowAuth(true); else setShowNotifs(s=>!s)}}>
+              <Bell size={18}/>
+              {notifications.filter(n=>!n.isRead).length > 0 && <span className="notif-badge">{notifications.filter(n=>!n.isRead).length}</span>}
+            </button>
+            <AnimatePresence>
+              {showNotifs && (
+                <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="notif-dropdown">
+                  <div className="notif-head">
+                    <h4>Notifications</h4>
+                    {notifications.some(n=>!n.isRead) && <button className="mark-read-btn" onClick={async()=>{
+                      await fetch(`${API}/notifications/readAll`, {method:'POST', headers:{'x-user-id':user.id}});
+                      fetchNotifs();
+                    }}>Mark all read</button>}
+                  </div>
+                  <div className="notif-body">
+                    {notifications.length === 0 ? <p className="notif-empty">No new notifications</p> : 
+                      notifications.map(n => (
+                        <div key={n.id} className={`notif-item ${!n.isRead?'unread':''}`}>
+                          <div className="notif-text">
+                            {n.type === 'POST_IN_SUBREDDIT' ? `u/${n.actor?.username} posted in a community you follow` : n.type === 'COMMENT_ON_POST' ? `u/${n.actor?.username} commented on your post` : `u/${n.actor?.username} replied to your comment`}
+                          </div>
+                          <span className="notif-time">{timeAgo(n.createdAt)}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           {user ? (
             <div className="user-menu-wrap">
               <button className="user-chip" onClick={()=>setShowUserMenu(s=>!s)}>
@@ -430,7 +504,7 @@ export default function App() {
               <form onSubmit={submitPost} className="modal-body">
                 <select value={newPost.subredditId} onChange={e=>setNewPost(p=>({...p,subredditId:e.target.value}))} required>
                   <option value="">Choose a community</option>
-                  {subreddits.map(s=><option key={s.id} value={s.id}>d/{s.name}</option>)}
+                  {[...subreddits].sort((a,b) => (joinedSubs.has(b.name)?1:0) - (joinedSubs.has(a.name)?1:0)).map(s=><option key={s.id} value={s.id}>d/{s.name} {joinedSubs.has(s.name)?'⭐':''}</option>)}
                 </select>
                 <input type="text" placeholder="Title *" value={newPost.title} onChange={e=>setNewPost(p=>({...p,title:e.target.value}))} required/>
                 <textarea placeholder="Text (optional)" value={newPost.content} onChange={e=>setNewPost(p=>({...p,content:e.target.value}))} rows={5}/>

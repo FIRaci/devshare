@@ -30,6 +30,10 @@ model User {
   votes     Vote[]
   subreddits Subreddit[] @relation("SubredditModerators")
   reports   Report[]     @relation("UserReports")
+
+  subscriptions Subscription[]
+  notificationsReceived Notification[] @relation("UserNotifications")
+  notificationsTriggered Notification[] @relation("NotificationActor")
 }
 
 model Subreddit {
@@ -41,6 +45,7 @@ model Subreddit {
 
   posts       Post[]
   moderators  User[]   @relation("SubredditModerators")
+  subscribers Subscription[]
 }
 
 model Post {
@@ -113,4 +118,37 @@ model Report {
 
   reporterId String
   reporter   User     @relation("UserReports", fields: [reporterId], references: [id])
+}
+
+model Subscription {
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subredditId String
+  subreddit   Subreddit @relation(fields: [subredditId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@id([userId, subredditId])
+}
+
+enum NotificationType {
+  POST_IN_SUBREDDIT
+  COMMENT_ON_POST
+  REPLY_TO_COMMENT
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  userId    String
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  actorId   String?
+  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  postId      String?
+  commentId   String?
+  subredditId String?
 }

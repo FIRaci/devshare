@@ -92,6 +92,23 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           votes: { select: { type: true, userId: true } }
         }
       });
+
+      // Create notifications for subscribers (excluding the author)
+      const subscribers = await db.subscription.findMany({
+        where: { subredditId: body.subredditId, userId: { not: user.id } }
+      });
+      if (subscribers.length > 0) {
+        await db.notification.createMany({
+          data: subscribers.map(sub => ({
+            type: "POST_IN_SUBREDDIT",
+            userId: sub.userId,
+            actorId: user.id,
+            postId: post.id,
+            subredditId: body.subredditId
+          }))
+        });
+      }
+
       return post;
     } catch (e) {
       console.error(e);

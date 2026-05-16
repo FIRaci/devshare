@@ -7,6 +7,7 @@ import { subredditRoutes } from "./routes/subreddits";
 import { commentRoutes } from "./routes/comments";
 import { authRoutes } from "./routes/auth";
 import { reportRoutes } from "./routes/reports";
+import { notificationRoutes } from "./routes/notifications";
 import { mkdir } from "fs/promises";
 
 const app = new Elysia()
@@ -30,6 +31,7 @@ const app = new Elysia()
   .use(subredditRoutes)
   .use(commentRoutes)
   .use(reportRoutes)
+  .use(notificationRoutes)
   .listen(3001);
 
 console.log(

@@ -39,7 +39,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
   // POST /auth/login
   .post("/login", async ({ body, set }) => {
     const user = await db.user.findFirst({
-      where: { OR: [{ username: body.identifier }, { email: body.identifier }] }
+      where: { OR: [{ username: body.identifier }, { email: body.identifier }] },
+      include: { subscriptions: true }
     });
     if (!user) {
       set.status = 401;
@@ -51,7 +52,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       return { error: "Invalid credentials" };
     }
     return {
-      user: { id: user.id, username: user.username, email: user.email, bio: user.bio, avatarColor: user.avatarColor, avatarUrl: user.avatarUrl, bannerUrl: user.bannerUrl, role: user.role, karma: user.karma, createdAt: user.createdAt },
+      user: { id: user.id, username: user.username, email: user.email, bio: user.bio, avatarColor: user.avatarColor, avatarUrl: user.avatarUrl, bannerUrl: user.bannerUrl, role: user.role, karma: user.karma, createdAt: user.createdAt, subscriptions: user.subscriptions },
       message: "Login successful"
     };
   }, {
@@ -67,7 +68,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       where: { username },
       select: {
         id: true, username: true, email: true, bio: true, avatarColor: true, avatarUrl: true, bannerUrl: true, role: true,
-        karma: true, createdAt: true,
+        karma: true, createdAt: true, subscriptions: true,
         posts: {
           include: { subreddit: true, _count: { select: { comments: true, votes: true } }, votes: { select: { type: true, userId: true } } },
           orderBy: { createdAt: "desc" }, take: 10

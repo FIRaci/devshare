@@ -56,6 +56,37 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
           votes: { select: { type: true, userId: true } }
         }
       });
+
+      // Notification logic
+      if (body.parentId) {
+        // This is a reply to another comment
+        const parentComment = await db.comment.findUnique({ where: { id: body.parentId } });
+        if (parentComment && parentComment.authorId !== user.id) {
+          await db.notification.create({
+            data: {
+              type: "REPLY_TO_COMMENT",
+              userId: parentComment.authorId,
+              actorId: user.id,
+              postId: body.postId,
+              commentId: comment.id
+            }
+          });
+        }
+      } else {
+        // This is a direct comment on a post
+        if (post.authorId !== user.id) {
+          await db.notification.create({
+            data: {
+              type: "COMMENT_ON_POST",
+              userId: post.authorId,
+              actorId: user.id,
+              postId: post.id,
+              commentId: comment.id
+            }
+          });
+        }
+      }
+
       return comment;
     } catch (e) {
       console.error(e);

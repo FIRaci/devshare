@@ -5,7 +5,7 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
   .get("/", async () => {
     return await db.subreddit.findMany({
       include: {
-        _count: { select: { posts: true } }
+        _count: { select: { posts: true, subscribers: true } }
       },
       orderBy: { posts: { _count: "desc" } }
     });
@@ -15,7 +15,7 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
     const subreddit = await db.subreddit.findUnique({
       where: { name },
       include: {
-        _count: { select: { posts: true } },
+        _count: { select: { posts: true, subscribers: true } },
         posts: {
           include: {
             author: { select: { id: true, username: true, karma: true } },
@@ -73,6 +73,40 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
       return { success: true };
     } catch (e) {
       console.error(e);
-      set.status = 500; return { error: "Could not delete community" };
+      set.status = 500; return { error: "Failed to delete" };
+    }
+  })
+  
+  // POST join/leave a subreddit
+  .post("/:name/join", async ({ params: { name }, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+
+    const user = await db.user.findUnique({ where: { id: userId } });
+    const sub = await db.subreddit.findUnique({ where: { name } });
+    if (!sub || !user) { set.status = 404; return { error: "Not found" }; }
+
+    try {
+      const existing = await db.subscription.findUnique({
+        where: { userId_subredditId: { userId, subredditId: sub.id } }
+      });
+
+      if (existing) {
+        // Leave
+        await db.subscription.delete({
+          where: { userId_subredditId: { userId, subredditId: sub.id } }
+        });
+        return { action: "left" };
+      } else {
+        // Join
+        await db.subscription.create({
+          data: { userId, subredditId: sub.id }
+        });
+        return { action: "joined" };
+      }
+    } catch (e) {
+      console.error(e);
+      set.status = 500;
+      return { error: "Could not change subscription status" };
     }
   });
