@@ -99,7 +99,7 @@ function CommentItem({ comment, depth=0, onReply, onAuthRequired }) {
         <button className={`c-vote down ${my==='DOWN'?'active-down':''}`} onClick={()=>handleVote('DOWN')}><ArrowBigDown size={13} fill={my==='DOWN'?'currentColor':'none'} strokeWidth={my==='DOWN'?2:1.5}/></button>
       </div>
       <div className="comment-body">
-        <div className="comment-meta"><span className="c-author">u/{comment.author?.username}</span><span className="c-time">{timeAgo(comment.createdAt)}</span></div>
+        <div className="comment-meta"><span className="c-author" style={{display:'inline-flex',alignItems:'center',gap:4}}><span style={{width:16,height:16,borderRadius:'50%',background:comment.author?.avatarUrl?'transparent':(comment.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{comment.author?.avatarUrl?<img src={comment.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:comment.author?.username?.[0]?.toUpperCase()}</span>u/{comment.author?.username}</span><span className="c-time">{timeAgo(comment.createdAt)}</span></div>
         <p className="c-content">{comment.content}</p>
         <div className="comment-actions">
           <button className="reply-btn" onClick={handleReplyClick}><MessageSquare size={11}/> Reply</button>
@@ -191,11 +191,11 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
 
   return (
     <motion.div initial={{opacity:0,x:16}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-16}} className="post-detail-view">
-      <button className="back-btn" onClick={onBack}><ArrowLeft size={15}/> Back</button>
+      <button className="back-btn" onClick={() => onBack(post)}><ArrowLeft size={15}/> Back</button>
       <div className="post-card detail-card">
         <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
         <div className="post-body">
-          <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
+          <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?'transparent':(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{post.author?.avatarUrl?<img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
           <h1 className="post-title" style={{fontSize:24,margin:'0 0 16px 0',color:'var(--text)',lineHeight:1.3}}>{post.title}</h1>
           {post.content&&<div style={{fontSize:15,color:'var(--text)',lineHeight:1.6,marginBottom:16,whiteSpace:'pre-wrap'}}>{post.content}</div>}
           
@@ -482,7 +482,7 @@ export default function App() {
             {profileUser ? (
               <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser} onProfileSaved={fetchAll}/>
             ) : selectedPost ? (
-              <PostDetail key="detail" post={selectedPost} onBack={()=>setSelectedPost(null)} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>setActionModal({type, post})} onUserClick={setProfileUser}/>
+              <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{setSelectedPost(null); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>setActionModal({type, post})} onUserClick={setProfileUser}/>
             ) : (
               <motion.div key="feed" initial={{opacity:0}} animate={{opacity:1}}>
                 <div className="feed-header">
@@ -498,7 +498,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="create-stub" onClick={()=>{ if(!user){setShowAuth(true);return}; setShowCreatePost(true)}}>
-                  <div className="stub-avatar">{user?user.username[0].toUpperCase():'?'}</div>
+                  <div className="stub-avatar" style={{background: user?.avatarUrl ? 'transparent' : (user?.avatarColor ?? 'var(--primary)'), overflow: 'hidden'}}>{user?.avatarUrl ? <img src={user.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/> : (user?user.username[0].toUpperCase():'?')}</div>
                   <div className="stub-input">{user ? "What's on your mind?" : 'Log in to post...'}</div>
                   <button className="stub-btn"><Plus size={15}/></button>
                 </div>
