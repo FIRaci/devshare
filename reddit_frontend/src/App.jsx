@@ -287,12 +287,27 @@ export default function App() {
   useEffect(()=>{document.body.setAttribute('data-theme',isDark?'dark':'light')},[isDark])
   useEffect(()=>{fetchAll()},[selectedSub])
 
-  const fetchAll=async()=>{
-    setLoading(true)
+  const fetchAll=async(showLoader=true)=>{
+    // Stale-while-revalidate: show cached data instantly
+    const cachedPosts = sessionStorage.getItem('ds:posts')
+    const cachedSubs = sessionStorage.getItem('ds:subs')
+    if (cachedPosts && cachedSubs && showLoader) {
+      try {
+        setPosts(selectedSub ? [] : JSON.parse(cachedPosts))
+        setSubreddits(JSON.parse(cachedSubs))
+        setLoading(false)
+      } catch {}
+    } else if (showLoader) {
+      setLoading(true)
+    }
     try{
       const [pr,sr]=await Promise.all([fetch(selectedSub?`${API}/subreddits/${selectedSub}`:`${API}/posts`),fetch(`${API}/subreddits`)])
       const pd=await pr.json(),sd=await sr.json()
-      setPosts(selectedSub?(pd.posts??[]):pd); setSubreddits(sd)
+      const newPosts = selectedSub?(pd.posts??[]):pd
+      setPosts(newPosts); setSubreddits(sd)
+      // Cache for next visit
+      if (!selectedSub) sessionStorage.setItem('ds:posts', JSON.stringify(newPosts))
+      sessionStorage.setItem('ds:subs', JSON.stringify(sd))
     }catch{toast.error('Failed to load')}finally{setLoading(false)}
   }
 

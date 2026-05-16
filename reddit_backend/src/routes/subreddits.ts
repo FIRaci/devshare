@@ -1,14 +1,18 @@
 import { Elysia, t } from "elysia";
-import { db } from "../db";
+import { db, getCached, setCache, invalidateCache } from "../db";
 
 export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
   .get("/", async () => {
-    return await db.subreddit.findMany({
+    const cached = getCached<any>('subs:all');
+    if (cached) return cached;
+    const data = await db.subreddit.findMany({
       include: {
         _count: { select: { posts: true, subscribers: true } }
       },
       orderBy: { posts: { _count: "desc" } }
     });
+    setCache('subs:all', data, 30000);
+    return data;
   })
 
   .get("/:name", async ({ params: { name }, set }) => {
@@ -42,6 +46,7 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
           description: body.description
         }
       });
+      invalidateCache('subs:');
       return subreddit;
     } catch (e) {
       set.status = 400;
@@ -70,6 +75,8 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
       // Delete associated posts first to avoid foreign key constraints
       await db.post.deleteMany({ where: { subredditId: sub.id } });
       await db.subreddit.delete({ where: { name } });
+      invalidateCache('subs:');
+      invalidateCache('posts:');
       return { success: true };
     } catch (e) {
       console.error(e);

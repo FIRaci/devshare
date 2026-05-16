@@ -35,6 +35,9 @@ const app = new Elysia()
   .use(notificationRoutes)
   .listen(3001);
 
+// Warm up DB connection on startup
+db.$connect().then(() => console.log('✅ Database connected'));
+
 console.log(
   `🚀 DevShare API is running at ${app.server?.hostname}:${app.server?.port}`
 );

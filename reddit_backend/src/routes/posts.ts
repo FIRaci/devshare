@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { db } from "../db";
+import { db, getCached, setCache, invalidateCache } from "../db";
 
 async function fetchLinkPreview(url: string) {
   try {
@@ -27,7 +27,9 @@ const getDefaultUser = async () => db.user.findFirst();
 export const postRoutes = new Elysia({ prefix: "/posts" })
   // GET all posts - include vote count properly
   .get("/", async () => {
-    return await db.post.findMany({
+    const cached = getCached<any>('posts:all');
+    if (cached) return cached;
+    const data = await db.post.findMany({
       include: {
         author: {
           select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true }
@@ -42,6 +44,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
       },
       orderBy: { createdAt: "desc" }
     });
+    setCache('posts:all', data, 10000);
+    return data;
   })
 
   // GET single post with full comments tree
@@ -137,6 +141,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         });
       }
 
+      invalidateCache('posts:');
+      invalidateCache('subs:');
       return post;
     } catch (e) {
       console.error(e);
