@@ -118,7 +118,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
     <motion.div className="post-card" initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} whileHover={{y:-1}} layout>
       <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
       <div className="post-body" onClick={onClick}>
-        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?`url(${post.author.avatarUrl}) center/cover`:(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0}}>{!post.author?.avatarUrl&&post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
+        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?'transparent':(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{post.author?.avatarUrl?<img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
         <h3 className="post-title">{post.title}</h3>
         {post.content&&<p className="post-excerpt">{post.content}</p>}
         {post.communityNote && (
@@ -302,9 +302,14 @@ export default function App() {
             <div className="user-menu-wrap">
               <button className="user-chip" onClick={()=>setShowUserMenu(s=>!s)}>
                 <div className="user-avatar" style={{
-                  background: user.avatarUrl ? `url(${user.avatarUrl}) center/cover no-repeat` : (user.avatarColor ?? 'var(--primary)'),
-                  color: 'white', fontSize: 13, fontWeight: 700
-                }}>{!user.avatarUrl && user.username[0].toUpperCase()}</div>
+                  background: user.avatarUrl ? 'transparent' : (user.avatarColor ?? 'var(--primary)'),
+                  color: 'white', fontSize: 13, fontWeight: 700, overflow: 'hidden', padding: 0
+                }}>
+                  {user.avatarUrl
+                    ? <img src={user.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                    : user.username[0].toUpperCase()
+                  }
+                </div>
                 <span>{user.username}</span>
                 <ChevronDown size={13}/>
               </button>

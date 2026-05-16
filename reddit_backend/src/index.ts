@@ -13,12 +13,13 @@ const app = new Elysia()
   .use(cors())
   .use(staticPlugin({ assets: "public", prefix: "/" }))
   .get("/", () => ({ status: "DevShare API is running", version: "2.0" }))
-  .post("/upload", async ({ body: { file } }) => {
+  .post("/upload", async ({ body: { file }, request }) => {
     await mkdir("public/uploads", { recursive: true });
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
     await Bun.write(`public/uploads/${filename}`, file);
-    return { url: `http://localhost:3001/uploads/${filename}` };
+    const host = new URL(request.url).origin;
+    return { url: `${host}/uploads/${filename}` };
   }, {
     body: t.Object({
       file: t.File()
