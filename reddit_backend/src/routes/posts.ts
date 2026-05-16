@@ -1,6 +1,26 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 
+async function fetchLinkPreview(url: string) {
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'bot' }, signal: AbortSignal.timeout(3000) });
+    const html = await res.text();
+    const getMeta = (prop: string) => {
+      const match = html.match(new RegExp(`<meta\\s+(?:property|name)=["']${prop}["']\\s+content=["']([^"']+)["']`, 'i')) || 
+                    html.match(new RegExp(`<meta\\s+content=["']([^"']+)["']\\s+(?:property|name)=["']${prop}["']`, 'i'));
+      return match ? match[1] : null;
+    };
+    const title = getMeta('og:title') || getMeta('twitter:title') || html.match(/<title>([^<]+)<\/title>/i)?.[1];
+    const description = getMeta('og:description') || getMeta('twitter:description') || getMeta('description');
+    const image = getMeta('og:image') || getMeta('twitter:image');
+    
+    if (title || description || image) {
+      return { url, title, description, image };
+    }
+  } catch {}
+  return null;
+}
+
 // Helper: get first user as mock session until JWT is implemented
 const getDefaultUser = async () => db.user.findFirst();
 
@@ -78,12 +98,20 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     }
 
     try {
+      let linkPreview = null;
+      if (body.linkUrl) {
+        linkPreview = await fetchLinkPreview(body.linkUrl);
+      }
+
       const post = await db.post.create({
         data: {
           title: body.title,
           content: body.content,
           authorId: user.id,
-          subredditId: body.subredditId
+          subredditId: body.subredditId,
+          mediaUrl: body.mediaUrl,
+          mediaType: body.mediaType,
+          linkPreview: linkPreview ? linkPreview : undefined
         },
         include: {
           author: { select: { id: true, username: true } },
@@ -119,7 +147,10 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     body: t.Object({
       title: t.String({ minLength: 1 }),
       content: t.Optional(t.String()),
-      subredditId: t.String({ minLength: 1 })
+      subredditId: t.String({ minLength: 1 }),
+      mediaUrl: t.Optional(t.String()),
+      mediaType: t.Optional(t.String()),
+      linkUrl: t.Optional(t.String())
     })
   })
 

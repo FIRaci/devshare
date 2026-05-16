@@ -52,6 +52,9 @@ model Post {
   id          String   @id @default(cuid())
   title       String
   content     String?  // Can be text or a URL for media
+  mediaUrl    String?
+  mediaType   String?  // "IMAGE", "VIDEO"
+  linkPreview Json?    // { url, title, description, image }
   communityNote String? // Admin community note
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
