@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id        String    @id @default(cuid())
+  username  String    @unique
+  email     String    @unique
+  password  String
+  role      Role      @default(USER)
+  bio         String?   @default("")
+  avatarColor String?   @default("#5C7CFA")
+  avatarUrl   String?
+  bannerUrl   String?
+  karma     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  posts     Post[]
+  comments  Comment[]
+  votes     Vote[]
+  subreddits Subreddit[] @relation("SubredditModerators")
+  reports   Report[]     @relation("UserReports")
+}
+
+model Subreddit {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts       Post[]
+  moderators  User[]   @relation("SubredditModerators")
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  content     String?  // Can be text or a URL for media
+  communityNote String? // Admin community note
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+
+  subredditId String
+  subreddit   Subreddit @relation(fields: [subredditId], references: [id])
+
+  comments    Comment[]
+  votes       Vote[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+
+  parentId  String?
+  parent    Comment?  @relation("CommentToComment", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentToComment")
+
+  votes     Vote[]
+}
+
+enum VoteType {
+  UP
+  DOWN
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  type      VoteType
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id])
+
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id])
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  targetId  String   // Post ID or Comment ID
+  type      String   // "POST" or "COMMENT"
+  reason    String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  reporterId String
+  reporter   User     @relation("UserReports", fields: [reporterId], references: [id])
+}

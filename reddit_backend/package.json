@@ -1,0 +1,26 @@
+{
+  "name": "devshare-backend",
+  "version": "1.0.50",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "bun run --watch src/index.ts",
+    "seed": "bun run src/seed.ts",
+    "db:push": "bun prisma db push",
+    "db:generate": "bun prisma generate"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/jwt": "^1.4.2",
+    "@elysiajs/static": "^1.4.10",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "elysia": "latest",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "bun-types": "latest",
+    "prisma": "^7.8.0"
+  },
+  "module": "src/index.js"
+}
