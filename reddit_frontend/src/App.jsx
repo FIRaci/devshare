@@ -16,8 +16,12 @@ const myVote = (votes=[]) => votes.find(v=>v.userId==='me')?.type??null
 
 // ── MediaRenderer ────────────────────────────────────────────────────────────
 function MediaRenderer({ post }) {
-  if (post.mediaType === 'VIDEO') return <video src={post.mediaUrl} controls className="post-media" onClick={e=>e.stopPropagation()}/>
-  if (post.mediaType === 'IMAGE') return <img src={post.mediaUrl} alt="" className="post-media" onClick={e=>e.stopPropagation()}/>
+  let safeUrl = post.mediaUrl;
+  if (safeUrl && safeUrl.startsWith('http://') && !safeUrl.includes('localhost')) {
+    safeUrl = safeUrl.replace('http://', 'https://');
+  }
+  if (post.mediaType === 'VIDEO') return <video src={safeUrl} controls className="post-media" onClick={e=>e.stopPropagation()}/>
+  if (post.mediaType === 'IMAGE') return <img src={safeUrl} alt="" className="post-media" onClick={e=>e.stopPropagation()}/>
   if (post.linkPreview) return (
     <a href={post.linkPreview.url} target="_blank" rel="noreferrer" className="link-preview-card" onClick={e=>e.stopPropagation()}>
       {post.linkPreview.image && <img src={post.linkPreview.image} alt=""/>}

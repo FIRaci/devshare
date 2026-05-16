@@ -553,11 +553,12 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 /* Responsive Adjustments */
 @media (max-width: 1024px) {
   .sidebar-right { display: none; }
-  .feed-area { max-width: 100%; flex: 1; }
-  .app-body { max-width: 800px; margin: 0 auto; }
+  .body-grid, .body-grid.no-right { grid-template-columns: var(--s-w) 1fr !important; }
+  .body-grid.left-collapsed, .body-grid.left-collapsed.no-right { grid-template-columns: 44px 1fr !important; }
 }
 
 @media (max-width: 768px) {
+  .body-grid, .body-grid.no-right, .body-grid.left-collapsed, .body-grid.left-collapsed.no-right { grid-template-columns: 1fr !important; }
   .sidebar-left { position: fixed; top: 56px; left: -100%; height: calc(100vh - 56px); z-index: 100; transition: left 0.3s; background: var(--surface); width: 260px; box-shadow: 10px 0 30px rgba(0,0,0,0.1); }
   .sidebar-left.open { left: 0; }
   .mobile-menu-btn { display: flex !important; }

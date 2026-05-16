@@ -19,8 +19,9 @@ const app = new Elysia()
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
     await Bun.write(`public/uploads/${filename}`, file);
-    const host = new URL(request.url).origin;
-    return { url: `${host}/uploads/${filename}` };
+    const proto = request.headers.get("x-forwarded-proto") || new URL(request.url).protocol.replace(':', '');
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host;
+    return { url: `${proto}://${host}/uploads/${filename}` };
   }, {
     body: t.Object({
       file: t.File()
