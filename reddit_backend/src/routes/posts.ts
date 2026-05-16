@@ -60,12 +60,14 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     return post;
   })
 
-  // POST create post - auto-resolve author from DB
-  .post("/", async ({ body, set }) => {
-    const user = await getDefaultUser();
+  // POST create post - use actual logged-in user
+  .post("/", async ({ body, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {
       set.status = 401;
-      return { error: "No user found. Please seed the database." };
+      return { error: "User not found" };
     }
 
     // Verify subreddit exists
@@ -105,11 +107,13 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
   })
 
   // POST vote on a post
-  .post("/:id/vote", async ({ params: { id }, body, set }) => {
-    const user = await getDefaultUser();
+  .post("/:id/vote", async ({ params: { id }, body, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {
       set.status = 401;
-      return { error: "Unauthorized" };
+      return { error: "User not found" };
     }
 
     // Verify post exists

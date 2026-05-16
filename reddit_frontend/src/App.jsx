@@ -52,7 +52,7 @@ function CommentItem({ comment, depth=0, onReply, onAuthRequired }) {
   const handleVote = async (type) => {
     if (!user) { onAuthRequired?.(); return }
     const prev=localVotes; setLocalVotes(applyVote(localVotes,type))
-    try { await fetch(`${API}/comments/${comment.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type})}) }
+    try { await fetch(`${API}/comments/${comment.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({type})}) }
     catch { setLocalVotes(prev) }
   }
 
@@ -64,7 +64,7 @@ function CommentItem({ comment, depth=0, onReply, onAuthRequired }) {
   const submitReply = async () => {
     if(!replyText.trim())return; setSubmitting(true)
     try {
-      const res=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:replyText,postId:comment.postId,parentId:comment.id})})
+      const res=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({content:replyText,postId:comment.postId,parentId:comment.id})})
       if(res.ok){toast.success('Reply posted!');setReplyText('');setShowReply(false);onReply()}
     } catch { toast.error('Failed') } finally { setSubmitting(false) }
   }
@@ -105,7 +105,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
   useEffect(()=>setPost(init),[init])
   const handleVote=async(type)=>{
     const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type)}))
-    try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type})})}
+    try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})})}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
   const handleSave = (e) => {
@@ -154,7 +154,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
   useEffect(()=>{fetch2()},[fetch2])
   const handleVote=async(type)=>{
     const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type)}))
-    try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type})})}
+    try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})})}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
   const handleCommentFocus = () => {
@@ -163,7 +163,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
   const submitComment=async()=>{
     if (!user) { onAuthRequired?.(); return }
     if(!commentText.trim())return; setSubmitting(true)
-    try{const r=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:commentText,postId:post.id})});if(r.ok){toast.success('Commented!');setCommentText('');fetch2();setPost(p=>({...p,_count:{...p._count,comments:(p._count?.comments??0)+1}}))}}
+    try{const r=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({content:commentText,postId:post.id})});if(r.ok){toast.success('Commented!');setCommentText('');fetch2();setPost(p=>({...p,_count:{...p._count,comments:(p._count?.comments??0)+1}}))}}
     catch{toast.error('Failed')}finally{setSubmitting(false)}
   }
 

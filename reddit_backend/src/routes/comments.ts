@@ -27,11 +27,13 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
   })
 
   // POST create a comment
-  .post("/", async ({ body, set }) => {
-    const user = await db.user.findFirst();
+  .post("/", async ({ body, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {
       set.status = 401;
-      return { error: "Unauthorized" };
+      return { error: "User not found" };
     }
 
     // Verify post exists
@@ -69,11 +71,13 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
   })
 
   // POST vote on a comment
-  .post("/:id/vote", async ({ params: { id }, body, set }) => {
-    const user = await db.user.findFirst();
+  .post("/:id/vote", async ({ params: { id }, body, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {
       set.status = 401;
-      return { error: "Unauthorized" };
+      return { error: "User not found" };
     }
 
     try {
