@@ -118,7 +118,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
     <motion.div className="post-card" initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} whileHover={{y:-1}} layout>
       <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
       <div className="post-body" onClick={onClick}>
-        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
+        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?`url(${post.author.avatarUrl}) center/cover`:(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0}}>{!post.author?.avatarUrl&&post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
         <h3 className="post-title">{post.title}</h3>
         {post.content&&<p className="post-excerpt">{post.content}</p>}
         {post.communityNote && (
@@ -301,7 +301,10 @@ export default function App() {
           {user ? (
             <div className="user-menu-wrap">
               <button className="user-chip" onClick={()=>setShowUserMenu(s=>!s)}>
-                <div className="user-avatar">{user.username[0].toUpperCase()}</div>
+                <div className="user-avatar" style={{
+                  background: user.avatarUrl ? `url(${user.avatarUrl}) center/cover no-repeat` : (user.avatarColor ?? 'var(--primary)'),
+                  color: 'white', fontSize: 13, fontWeight: 700
+                }}>{!user.avatarUrl && user.username[0].toUpperCase()}</div>
                 <span>{user.username}</span>
                 <ChevronDown size={13}/>
               </button>
@@ -348,7 +351,7 @@ export default function App() {
         <main className="feed-area">
           <AnimatePresence mode="wait">
             {profileUser ? (
-              <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser}/>
+              <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser} onProfileSaved={fetchAll}/>
             ) : selectedPost ? (
               <PostDetail key="detail" post={selectedPost} onBack={()=>setSelectedPost(null)} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>setActionModal({type, post})} onUserClick={setProfileUser}/>
             ) : (

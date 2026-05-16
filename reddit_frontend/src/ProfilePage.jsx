@@ -23,7 +23,7 @@ const AVATAR_COLORS = [
   '#51CF66','#20C997','#15AABF','#339AF0','#F76707'
 ]
 
-export default function ProfilePage({ username, onBack, onPostClick, onUsernameChange }) {
+export default function ProfilePage({ username, onBack, onPostClick, onUsernameChange, onProfileSaved }) {
   const { user: me, login, updateUser } = useAuth()
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('posts')
@@ -91,6 +91,7 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
 
       setShowEdit(false)
       toast.success('Profile updated!')
+      onProfileSaved?.()  // refresh posts in feed so avatars update
     } catch { toast.error('Failed to save') }
     finally { setSaving(false) }
   }

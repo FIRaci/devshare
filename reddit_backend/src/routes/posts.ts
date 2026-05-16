@@ -10,7 +10,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     return await db.post.findMany({
       include: {
         author: {
-          select: { id: true, username: true, karma: true }
+          select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true }
         },
         subreddit: true,
         _count: {
@@ -30,7 +30,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
       where: { id },
       include: {
         author: {
-          select: { id: true, username: true, karma: true }
+          select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true }
         },
         subreddit: true,
         votes: {
