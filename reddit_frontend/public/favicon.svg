@@ -1,29 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <defs>
-    <linearGradient id="g1" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#5C7CFA"/>
-      <stop offset="100%" stop-color="#7950F2"/>
-    </linearGradient>
-    <linearGradient id="g2" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#748FFC"/>
-      <stop offset="100%" stop-color="#9775FA"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Rounded square background -->
-  <rect width="48" height="48" rx="12" fill="url(#g1)"/>
-
-  <!-- Share icon: 3 nodes connected by lines -->
-  <!-- Lines first (behind nodes) -->
-  <line x1="14" y1="24" x2="30" y2="13" stroke="white" stroke-width="2" stroke-opacity="0.6" stroke-linecap="round"/>
-  <line x1="14" y1="24" x2="30" y2="35" stroke="white" stroke-width="2" stroke-opacity="0.6" stroke-linecap="round"/>
-
-  <!-- Left center node -->
-  <circle cx="14" cy="24" r="5" fill="white"/>
-
-  <!-- Top right node -->
-  <circle cx="32" cy="13" r="4" fill="white" fill-opacity="0.9"/>
-
-  <!-- Bottom right node -->
-  <circle cx="32" cy="35" r="4" fill="white" fill-opacity="0.9"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="8" fill="#5C7CFA"/>
+  <!-- Layers icon (matches lucide Layers) -->
+  <!-- Bottom layer -->
+  <polyline points="5,20 16,26 27,20" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.65"/>
+  <!-- Middle layer -->
+  <polyline points="5,16 16,22 27,16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.82"/>
+  <!-- Top layer (diamond shape) -->
+  <polygon points="16,6 27,12 16,18 5,12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>
