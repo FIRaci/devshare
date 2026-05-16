@@ -51,12 +51,12 @@ model Subreddit {
 model Post {
   id            String   @id @default(cuid())
   title         String
-  content       String? // Can be text or a URL for media
-  mediaUrl      String?
-  mediaType     String? // "IMAGE", "VIDEO"
-  attachments   Json?   // Array of { url, type, name }
-  linkPreview   Json? // { url, title, description, image }
-  communityNote String? // Admin community note
+  content       String? // Rich markdown text
+  mediaUrl      String?  // Legacy single media
+  mediaType     String?  // Legacy: "IMAGE", "VIDEO"
+  attachments   Json?    // Array of { type: "IMAGE"|"VIDEO"|"FILE"|"LINK", url, name?, size?, linkPreview? }
+  linkPreview   Json?    // Legacy single link preview
+  communityNote String?  // Admin community note
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

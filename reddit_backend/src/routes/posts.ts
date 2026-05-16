@@ -84,27 +84,33 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     return post;
   })
 
-  // POST create post - use actual logged-in user
+  // POST create post
   .post("/", async ({ body, headers, set }) => {
     const userId = headers["x-user-id"];
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
     const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      set.status = 401;
-      return { error: "User not found" };
-    }
+    if (!user) { set.status = 401; return { error: "User not found" }; }
 
-    // Verify subreddit exists
     const subreddit = await db.subreddit.findUnique({ where: { id: body.subredditId } });
-    if (!subreddit) {
-      set.status = 400;
-      return { error: "Subreddit not found" };
-    }
+    if (!subreddit) { set.status = 400; return { error: "Subreddit not found" }; }
 
     try {
+      // Handle legacy single link preview
       let linkPreview = null;
       if (body.linkUrl) {
         linkPreview = await fetchLinkPreview(body.linkUrl);
+      }
+
+      // Enrich LINK attachments with link previews
+      let attachments = body.attachments ?? null;
+      if (attachments && Array.isArray(attachments)) {
+        attachments = await Promise.all(attachments.map(async (att: any) => {
+          if (att.type === 'LINK' && att.url) {
+            const preview = await fetchLinkPreview(att.url).catch(() => null);
+            return { ...att, linkPreview: preview };
+          }
+          return att;
+        }));
       }
 
       const post = await db.post.create({
@@ -115,18 +121,18 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           subredditId: body.subredditId,
           mediaUrl: body.mediaUrl,
           mediaType: body.mediaType,
-          attachments: body.attachments ? (body.attachments as any) : undefined,
-          linkPreview: linkPreview ? linkPreview : undefined
+          linkPreview: linkPreview ? linkPreview : undefined,
+          attachments: attachments ? attachments : undefined,
         },
         include: {
-          author: { select: { id: true, username: true, avatarUrl: true, avatarColor: true } },
+          author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
           subreddit: true,
           _count: { select: { comments: true, votes: true } },
           votes: { select: { type: true, userId: true } }
         }
       });
 
-      // Create notifications for subscribers (excluding the author)
+      // Create notifications for subscribers
       const subscribers = await db.subscription.findMany({
         where: { subredditId: body.subredditId, userId: { not: user.id } }
       });
@@ -157,12 +163,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
       subredditId: t.String({ minLength: 1 }),
       mediaUrl: t.Optional(t.String()),
       mediaType: t.Optional(t.String()),
-      attachments: t.Optional(t.Array(t.Object({
-        url: t.String(),
-        type: t.String(),
-        name: t.String()
-      }))),
-      linkUrl: t.Optional(t.String())
+      linkUrl: t.Optional(t.String()),
+      attachments: t.Optional(t.Array(t.Any())),
     })
   })
 

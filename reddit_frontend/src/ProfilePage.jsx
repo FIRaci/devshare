@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, MessageSquare, ArrowBigUp, Calendar, Award,
-  FileText, Edit2, Check, X, LogOut, Palette, Upload
+  FileText, Edit2, Check, X, LogOut, Palette, Upload, ExternalLink
 } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import toast from 'react-hot-toast'
+import MediaRenderer from './MediaRenderer'
+import MarkdownRenderer from './MarkdownRenderer'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const timeAgo = (d) => {
@@ -208,7 +210,8 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
                     <span className="meta-text">{timeAgo(post.createdAt)}</span>
                   </div>
                   <h3 className="post-title">{post.title}</h3>
-                  {post.content && <p className="post-excerpt">{post.content}</p>}
+                  {post.content && <div className="post-content-preview"><MarkdownRenderer content={post.content} compact /></div>}
+                  <MediaRenderer post={post} />
                   <div className="post-actions">
                     <span className="action-btn">
                       <ArrowBigUp size={14}/>
@@ -224,12 +227,15 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
           profile.comments?.length === 0
             ? <div className="empty-feed"><MessageSquare size={36}/><p>No comments yet.</p></div>
             : profile.comments?.map(c => (
-              <div key={c.id} className="comment-preview-card">
-                <div className="comment-preview-sub">
-                  In <strong>d/{c.post?.subreddit?.name}</strong> · {c.post?.title}
+              <div key={c.id} className="comment-preview-card" onClick={() => c.post && onPostClick(c.post)} style={{ cursor: c.post ? 'pointer' : 'default' }}>
+                <div className="comment-preview-context">
+                  <span className="sub-badge" style={{fontSize:11}}>d/{c.post?.subreddit?.name}</span>
+                  <span className="meta-dot">·</span>
+                  <span className="comment-preview-post-title">in <strong>{c.post?.title}</strong></span>
+                  <span className="meta-dot">·</span>
+                  <span className="meta-text">{timeAgo(c.createdAt)}</span>
                 </div>
-                <p>{c.content}</p>
-                <span className="meta-text">{timeAgo(c.createdAt)}</span>
+                <p className="comment-preview-body">{c.content}</p>
               </div>
             ))
         )}

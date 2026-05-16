@@ -1,39 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
-import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Image as ImageIcon, Video, Link as LinkIcon, Edit3, Trash2 } from 'lucide-react'
+import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Trash2 } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import AuthPage from './AuthPage'
 import ProfilePage from './ProfilePage'
+import MediaRenderer from './MediaRenderer'
+import MarkdownRenderer from './MarkdownRenderer'
+import CreatePostModal from './CreatePostModal'
 import './App.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-console.log('Current API Endpoint:', API)
 const timeAgo = (d) => { const diff=Date.now()-new Date(d).getTime(),m=Math.floor(diff/60000); if(m<1)return 'just now'; if(m<60)return `${m}m`; const h=Math.floor(m/60); if(h<24)return `${h}h`; return `${Math.floor(h/24)}d` }
 const applyVote = (votes=[], type, uid='me') => { const ex=votes.find(v=>v.userId===uid); if(ex?.type===type) return votes.filter(v=>v.userId!==uid); return [...votes.filter(v=>v.userId!==uid),{type,userId:uid}] }
 const getScore = (votes=[]) => votes.reduce((a,v)=>a+(v.type==='UP'?1:-1),0)
 const myVote = (votes=[]) => votes.find(v=>v.userId==='me')?.type??null
-
-// ── MediaRenderer ────────────────────────────────────────────────────────────
-function MediaRenderer({ post }) {
-  let safeUrl = post.mediaUrl;
-  if (safeUrl && safeUrl.startsWith('http://') && !safeUrl.includes('localhost')) {
-    safeUrl = safeUrl.replace('http://', 'https://');
-  }
-  if (post.mediaType === 'VIDEO') return <video src={safeUrl} controls className="post-media" onClick={e=>e.stopPropagation()}/>
-  if (post.mediaType === 'IMAGE') return <img src={safeUrl} alt="" className="post-media" onClick={e=>e.stopPropagation()}/>
-  if (post.linkPreview) return (
-    <a href={post.linkPreview.url} target="_blank" rel="noreferrer" className="link-preview-card" onClick={e=>e.stopPropagation()}>
-      {post.linkPreview.image && <img src={post.linkPreview.image} alt=""/>}
-      <div className="link-preview-info">
-        <h4>{post.linkPreview.title}</h4>
-        <p>{post.linkPreview.description}</p>
-        <small>{new URL(post.linkPreview.url).hostname}</small>
-      </div>
-    </a>
-  )
-  return null;
-}
 
 // ── VoteButtons (filled icons when active) ───────────────────────────────────
 function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) {
@@ -203,7 +184,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
         <div className="post-body">
           <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?'transparent':(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{post.author?.avatarUrl?<img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
           <h1 className="post-title" style={{fontSize:24,margin:'0 0 16px 0',color:'var(--text)',lineHeight:1.3}}>{post.title}</h1>
-          {post.content&&<div style={{fontSize:15,color:'var(--text)',lineHeight:1.6,marginBottom:16,whiteSpace:'pre-wrap'}}>{post.content}</div>}
+          {post.content && <div style={{marginBottom:16}}><MarkdownRenderer content={post.content} /></div>}
           
           <MediaRenderer post={post}/>
           
@@ -271,8 +252,6 @@ export default function App() {
   const [showCreateSub,setShowCreateSub]=useState(false)
   const [sortBy,setSortBy]=useState('new')
   const [searchQuery,setSearchQuery]=useState('')
-  const [newPost,setNewPost]=useState({title:'',content:'',subredditId:'', mediaUrl: '', mediaType: '', linkUrl: ''})
-  const [showAttachLink, setShowAttachLink] = useState(false)
   const [newSub,setNewSub]=useState({name:'',description:''})
   const [leftCollapsed,setLeftCollapsed]=useState(false)
   const [mobileMenuOpen, setMobileMenuOpen]=useState(false)
@@ -321,34 +300,7 @@ export default function App() {
     }catch{toast.error('Failed to load')}finally{setLoading(false)}
   }
 
-  const [submittingPost,setSubmittingPost]=useState(false)
   const [submittingSub,setSubmittingSub]=useState(false)
-
-  const submitPost=async(e)=>{
-    e.preventDefault(); if(submittingPost) return; setSubmittingPost(true); const tId = toast.loading('Posting...')
-    try {
-      const res=await fetch(`${API}/posts`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({title:newPost.title,content:newPost.content,subredditId:newPost.subredditId, mediaUrl: newPost.mediaUrl, mediaType: newPost.mediaType, linkUrl: newPost.linkUrl})})
-      const d=await res.json(); if(!res.ok){ toast.error(d.error??'Failed', {id: tId}); return }
-      toast.success('Post created!', {id: tId}); setShowCreatePost(false); setNewPost({title:'',content:'',subredditId:'', mediaUrl: '', mediaType: '', linkUrl: ''}); setShowAttachLink(false); fetchAll()
-    } catch { toast.error('Failed to connect', {id: tId}) } finally { setSubmittingPost(false) }
-  }
-
-  const uploadMedia = async (file) => {
-    if (!file) return;
-    const tId = toast.loading('Uploading...');
-    const fd = new FormData(); fd.append('file', file);
-    try {
-      const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
-      const d = await r.json();
-      if (!r.ok) throw new Error();
-      const type = file.type.startsWith('video') ? 'VIDEO' : 'IMAGE';
-      setNewPost(p => ({ ...p, mediaUrl: d.url, mediaType: type, linkUrl: '' }));
-      setShowAttachLink(false);
-      toast.success('Uploaded!', { id: tId });
-    } catch {
-      toast.error('Upload failed', { id: tId });
-    }
-  }
 
   const submitSub=async(e)=>{
     e.preventDefault(); if(submittingSub) return; setSubmittingSub(true); const tId = toast.loading('Creating...')
@@ -572,48 +524,14 @@ export default function App() {
 
       <AnimatePresence>
         {showAuth&&<AuthPage key="auth" onClose={()=>setShowAuth(false)}/>}
-        {showCreatePost&&(
-          <div className="modal-backdrop" onClick={()=>setShowCreatePost(false)}>
-            <motion.div className="modal" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
-              <div className="modal-head"><h3>Create Post</h3><button onClick={()=>setShowCreatePost(false)}><X size={18}/></button></div>
-              <form onSubmit={submitPost} className="modal-body">
-                <select value={newPost.subredditId} onChange={e=>setNewPost(p=>({...p,subredditId:e.target.value}))} required>
-                  <option value="">Choose a community</option>
-                  {[...subreddits].sort((a,b) => (joinedSubs.has(b.name)?1:0) - (joinedSubs.has(a.name)?1:0)).map(s=><option key={s.id} value={s.id}>d/{s.name} {joinedSubs.has(s.name)?'⭐':''}</option>)}
-                </select>
-                <input type="text" placeholder="Title *" value={newPost.title} onChange={e=>setNewPost(p=>({...p,title:e.target.value}))} required/>
-                <textarea placeholder="Text (optional)" value={newPost.content} onChange={e=>setNewPost(p=>({...p,content:e.target.value}))} rows={4}/>
-                
-                {newPost.mediaUrl && (
-                  <div className="attach-preview">
-                    {newPost.mediaType === 'VIDEO' ? <video src={newPost.mediaUrl} controls /> : <img src={newPost.mediaUrl} alt="" />}
-                    <button type="button" className="remove-attach" onClick={()=>setNewPost(p=>({...p,mediaUrl:'',mediaType:''}))}><X size={14}/></button>
-                  </div>
-                )}
-                {newPost.linkUrl && (
-                  <div className="attach-preview link-preview">
-                    <span>Attached Link: {newPost.linkUrl}</span>
-                    <button type="button" className="remove-attach" onClick={()=>setNewPost(p=>({...p,linkUrl:''}))}><X size={14}/></button>
-                  </div>
-                )}
-                {showAttachLink && !newPost.linkUrl && (
-                  <div className="attach-link-input">
-                    <input type="url" placeholder="Paste link here..." autoFocus onBlur={e=>{if(e.target.value)setNewPost(p=>({...p,linkUrl:e.target.value,mediaUrl:'',mediaType:''})); setShowAttachLink(false)}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault(); if(e.target.value)setNewPost(p=>({...p,linkUrl:e.target.value,mediaUrl:'',mediaType:''})); setShowAttachLink(false)}}} />
-                  </div>
-                )}
-
-                <div className="post-attach-bar">
-                  <label className="attach-btn"><ImageIcon size={16}/><span>Image</span><input type="file" accept="image/*" hidden onChange={e=>uploadMedia(e.target.files[0])}/></label>
-                  <label className="attach-btn"><Video size={16}/><span>Video</span><input type="file" accept="video/*" hidden onChange={e=>uploadMedia(e.target.files[0])}/></label>
-                  <button type="button" className="attach-btn" onClick={()=>setShowAttachLink(true)}><LinkIcon size={16}/><span>Link</span></button>
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn-outline" onClick={()=>setShowCreatePost(false)}>Cancel</button>
-                  <button type="submit" className="btn-post" disabled={submittingPost}>{submittingPost ? 'Posting...' : 'Post'}</button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
+        {showCreatePost && (
+          <CreatePostModal
+            subreddits={subreddits}
+            joinedSubs={joinedSubs}
+            user={user}
+            onClose={() => setShowCreatePost(false)}
+            onSuccess={() => fetchAll()}
+          />
         )}
         {showCreateSub&&(
           <div className="modal-backdrop" onClick={()=>setShowCreateSub(false)}>
