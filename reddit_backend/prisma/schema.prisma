@@ -12,27 +12,27 @@ enum Role {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  username  String    @unique
-  email     String    @unique
-  password  String
-  role      Role      @default(USER)
-  bio         String?   @default("")
-  avatarColor String?   @default("#5C7CFA")
+  id          String   @id @default(cuid())
+  username    String   @unique
+  email       String   @unique
+  password    String
+  role        Role     @default(USER)
+  bio         String?  @default("")
+  avatarColor String?  @default("#5C7CFA")
   avatarUrl   String?
   bannerUrl   String?
-  karma     Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  karma       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  posts     Post[]
-  comments  Comment[]
-  votes     Vote[]
+  posts      Post[]
+  comments   Comment[]
+  votes      Vote[]
   subreddits Subreddit[] @relation("SubredditModerators")
-  reports   Report[]     @relation("UserReports")
+  reports    Report[]    @relation("UserReports")
 
-  subscriptions Subscription[]
-  notificationsReceived Notification[] @relation("UserNotifications")
+  subscriptions          Subscription[]
+  notificationsReceived  Notification[] @relation("UserNotifications")
   notificationsTriggered Notification[] @relation("NotificationActor")
 }
 
@@ -44,29 +44,30 @@ model Subreddit {
   updatedAt   DateTime @updatedAt
 
   posts       Post[]
-  moderators  User[]   @relation("SubredditModerators")
+  moderators  User[]         @relation("SubredditModerators")
   subscribers Subscription[]
 }
 
 model Post {
-  id          String   @id @default(cuid())
-  title       String
-  content     String?  // Can be text or a URL for media
-  mediaUrl    String?
-  mediaType   String?  // "IMAGE", "VIDEO"
-  linkPreview Json?    // { url, title, description, image }
+  id            String   @id @default(cuid())
+  title         String
+  content       String? // Can be text or a URL for media
+  mediaUrl      String?
+  mediaType     String? // "IMAGE", "VIDEO"
+  attachments   Json?   // Array of { url, type, name }
+  linkPreview   Json? // { url, title, description, image }
   communityNote String? // Admin community note
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  authorId    String
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   subredditId String
   subreddit   Subreddit @relation(fields: [subredditId], references: [id], onDelete: Cascade)
 
-  comments    Comment[]
-  votes       Vote[]
+  comments Comment[]
+  votes    Vote[]
 }
 
 model Comment {
@@ -75,17 +76,17 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  parentId  String?
-  parent    Comment?  @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   Comment[] @relation("CommentToComment")
+  parentId String?
+  parent   Comment?  @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentToComment")
 
-  votes     Vote[]
+  votes Vote[]
 }
 
 enum VoteType {
@@ -98,11 +99,11 @@ model Vote {
   type      VoteType
   createdAt DateTime @default(now())
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  postId    String?
-  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   commentId String?
   comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
@@ -113,14 +114,14 @@ model Vote {
 
 model Report {
   id        String   @id @default(cuid())
-  targetId  String   // Post ID or Comment ID
-  type      String   // "POST" or "COMMENT"
+  targetId  String // Post ID or Comment ID
+  type      String // "POST" or "COMMENT"
   reason    String
   resolved  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   reporterId String
-  reporter   User     @relation("UserReports", fields: [reporterId], references: [id])
+  reporter   User   @relation("UserReports", fields: [reporterId], references: [id])
 }
 
 model Subscription {
@@ -145,11 +146,11 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
 
-  userId    String
-  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
 
-  actorId   String?
-  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorId String?
+  actor   User?   @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   postId      String?
   commentId   String?

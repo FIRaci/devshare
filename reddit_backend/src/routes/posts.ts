@@ -115,10 +115,11 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           subredditId: body.subredditId,
           mediaUrl: body.mediaUrl,
           mediaType: body.mediaType,
+          attachments: body.attachments ? JSON.parse(JSON.stringify(body.attachments)) : undefined,
           linkPreview: linkPreview ? linkPreview : undefined
         },
         include: {
-          author: { select: { id: true, username: true } },
+          author: { select: { id: true, username: true, avatarUrl: true, avatarColor: true } },
           subreddit: true,
           _count: { select: { comments: true, votes: true } },
           votes: { select: { type: true, userId: true } }
@@ -156,6 +157,11 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
       subredditId: t.String({ minLength: 1 }),
       mediaUrl: t.Optional(t.String()),
       mediaType: t.Optional(t.String()),
+      attachments: t.Optional(t.Array(t.Object({
+        url: t.String(),
+        type: t.String(),
+        name: t.Optional(t.String())
+      }))),
       linkUrl: t.Optional(t.String())
     })
   })
