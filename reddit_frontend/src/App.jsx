@@ -487,16 +487,18 @@ export default function App() {
                         } else if (type === 'DELETE') {
                           await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
                           toast.success('Post deleted', { id: tid });
-                          setTimeout(() => window.location.reload(), 1000);
+                          setSelectedPost(null);
+                          fetchAll();
                         } else if (type === 'DELETE_SUB') {
                           await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
                           toast.success('Community deleted', { id: tid });
-                          setTimeout(() => window.location.reload(), 1000);
+                          navHome();
+                          fetchAll();
                         } else if (type === 'NOTE') {
                           if(!actionText.trim()) return toast.error('Note required', { id: tid });
                           await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ communityNote: actionText }) });
                           toast.success('Note added!', { id: tid });
-                          setTimeout(() => window.location.reload(), 1000);
+                          fetchAll();
                         }
                         setActionModal(null); setActionText('');
                       } catch { toast.error('Action failed', { id: tid }); }
