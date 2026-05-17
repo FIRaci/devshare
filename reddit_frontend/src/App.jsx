@@ -313,7 +313,10 @@ export default function App() {
     try {
       const res=await fetch(`${API}/subreddits`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({name:newSub.name,description:newSub.description})})
       const d=await res.json(); if(!res.ok){ toast.error(d.error??'Failed', {id: tId}); return }
-      toast.success(`d/${newSub.name} created!`, {id: tId}); setShowCreateSub(false); setNewSub({name:'',description:''}); fetchAll()
+      toast.success(`d/${newSub.name} created!`, {id: tId}); setShowCreateSub(false); setNewSub({name:'',description:''})
+      joinedSubs.add(newSub.name); setJoinedSubs(new Set(joinedSubs))
+      updateUser({ subscriptions: [...(user.subscriptions||[]), { subredditId: d.id }] })
+      fetchAll()
     } catch { toast.error('Failed to connect', {id: tId}) } finally { setSubmittingSub(false) }
   }
 

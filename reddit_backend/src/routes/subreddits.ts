@@ -119,6 +119,11 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
           moderators: { connect: { id: user.id } }
         }
       });
+
+      await db.subscription.create({
+        data: { userId: user.id, subredditId: subreddit.id }
+      });
+
       invalidateCache('subs:');
       return subreddit;
     } catch (e) {

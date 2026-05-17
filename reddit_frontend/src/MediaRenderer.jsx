@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import Lightbox from './Lightbox'
-import { FileText, ExternalLink } from 'lucide-react'
+import { FileText, ExternalLink, Play, Globe, MessageCircle } from 'lucide-react'
 
 function getMediaItems(post) {
   const items = []
@@ -18,6 +18,19 @@ function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / 1048576).toFixed(1) + ' MB'
+}
+
+function extractYoutubeId(url) {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-z0-9_-]{11})/i)
+  return m ? m[1] : null
+}
+
+function isTwitterUrl(url) {
+  return /(?:twitter\.com|x\.com)\/\w+\/status\//i.test(url)
+}
+
+function isFacebookUrl(url) {
+  return /(?:facebook\.com|fb\.com)\/.+/i.test(url)
 }
 
 export default function MediaRenderer({ post, isFeed = false }) {
@@ -87,13 +100,46 @@ export default function MediaRenderer({ post, isFeed = false }) {
 
       {linkItems.map((att, i) => {
         const preview = att.linkPreview
+        const platform = preview?.platform
+        const ytId = platform === 'youtube' && preview?.videoId ? preview.videoId : extractYoutubeId(att.url)
+        const isTwitter = platform === 'twitter' || isTwitterUrl(att.url)
+        const isFacebook = platform === 'facebook' || isFacebookUrl(att.url)
+
+        if (ytId) {
+          return (
+            <div key={i} className="yt-embed-wrap" onClick={e => e.stopPropagation()}>
+              <iframe
+                src={`https://www.youtube.com/embed/${ytId}`}
+                title={preview?.title || 'YouTube video'}
+                className="yt-embed"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+          )
+        }
+
         return (
-          <a key={i} href={att.url} target="_blank" rel="noreferrer" className="link-preview-card" onClick={e => e.stopPropagation()}>
-            {preview?.image && <img src={preview.image} alt="" />}
+          <a key={i} href={att.url} target="_blank" rel="noreferrer" className={`link-preview-card ${isTwitter ? 'link-twitter' : isFacebook ? 'link-facebook' : ''}`} onClick={e => e.stopPropagation()}>
+            {preview?.image && !isTwitter && !isFacebook && <img src={preview.image} alt="" />}
+            {isTwitter && (
+              <div className="link-platform-badge"><MessageCircle size={14}/> X / Twitter</div>
+            )}
+            {isFacebook && (
+              <div className="link-platform-badge"><Globe size={14}/> Facebook</div>
+            )}
+            {ytId && (
+              <div className="link-platform-badge"><Play size={14} style={{color:'#FF0000'}}/> YouTube</div>
+            )}
             <div className="link-preview-info">
               <h4>{preview?.title || att.url}</h4>
               {preview?.description && <p>{preview.description}</p>}
-              <small><ExternalLink size={10} style={{ marginRight: 4 }} />{att.url}</small>
+              <small>
+                {preview?.siteName && <span className="link-site-name">{preview.siteName}</span>}
+                <ExternalLink size={10} style={{ marginRight: 4 }} />
+                {new URL(att.url).hostname.replace('www.', '')}
+              </small>
             </div>
           </a>
         )

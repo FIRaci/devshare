@@ -68,6 +68,14 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
 
   const prev = () => setIdx(i => Math.max(i - 1, 0))
   const next = () => setIdx(i => Math.min(i + 1, items.length - 1))
+  const thumbsRef = useRef(null)
+  const activeThumbRef = useRef(null)
+
+  useEffect(() => {
+    if (activeThumbRef.current && thumbsRef.current) {
+      thumbsRef.current.scrollTo({ left: activeThumbRef.current.offsetLeft - thumbsRef.current.clientWidth / 2 + 28, behavior: 'smooth' })
+    }
+  }, [idx])
 
   return (
     <motion.div
@@ -164,9 +172,9 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
 
         {/* Thumbnail strip */}
         {items.length > 1 && (
-          <div className="lightbox-thumbs" onClick={e => e.stopPropagation()}>
+          <div className="lightbox-thumbs" onClick={e => e.stopPropagation()} ref={thumbsRef}>
             {items.map((item, i) => (
-              <button key={i} className={`lb-thumb ${i === idx ? 'active' : ''}`} onClick={() => setIdx(i)}>
+              <button key={i} ref={i === idx ? activeThumbRef : null} className={`lb-thumb ${i === idx ? 'active' : ''}`} onClick={() => setIdx(i)}>
                 {(item.type === 'IMAGE' || /\.(gif|jpe?g|png|webp|svg)(\?|$)/i.test(item.url || ''))
                   ? <img src={item.url} alt="" />
                   : <div className="lb-thumb-icon">{item.type === 'VIDEO' ? '▶' : '📄'}</div>
