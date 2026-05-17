@@ -572,116 +572,91 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 
 .mobile-menu-btn { display: none; background: none; border: none; color: var(--text); padding: 8px; margin-right: 8px; cursor: pointer; }
 
-/* ── Lightbox (Discord-style fullscreen) ──────────────────────────────── */
-.lb-root {
+/* ── Lightbox ────────────────────────────────────────────────────────────── */
+.lightbox-root {
   position: fixed; inset: 0; z-index: 9000;
-  /* no background here - it's on lb-overlay */
+  pointer-events: all;
 }
-.lb-overlay {
+.lightbox-backdrop {
   width: 100%; height: 100%;
-  background: rgba(0,0,0,.9);
+  background: rgba(0,0,0,.92);
   display: flex; flex-direction: column;
-  overflow: hidden; /* NEVER scroll the overlay itself */
+  overflow: hidden;
   user-select: none;
 }
-
-/* ── Top bar ── */
-.lb-bar {
+.lightbox-topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px; background: rgba(0,0,0,.45);
-  backdrop-filter: blur(12px); flex-shrink: 0; z-index: 2;
+  padding: 12px 20px; background: rgba(0,0,0,.5);
+  backdrop-filter: blur(8px); flex-shrink: 0;
 }
-.lb-counter { font-size: 13px; color: rgba(255,255,255,.65); font-weight: 600; }
-.lb-bar-right { display: flex; align-items: center; gap: 4px; }
-.lb-icon {
-  width: 34px; height: 34px; border-radius: 8px;
+.lightbox-counter { font-size: 13px; color: rgba(255,255,255,.7); font-weight: 600; }
+.lightbox-controls { display: flex; align-items: center; gap: 8px; }
+.lb-btn {
+  width: 36px; height: 36px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  color: rgba(255,255,255,.75); background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.8); background: rgba(255,255,255,.1);
   border: none; cursor: pointer; text-decoration: none;
-  transition: background .15s, color .15s; flex-shrink: 0;
+  transition: background .15s, color .15s;
 }
-.lb-icon:hover { background: rgba(255,255,255,.18); color: white; }
-.lb-x { background: rgba(220,50,50,.25); }
-.lb-x:hover { background: rgba(220,50,50,.7); color: white; }
-.lb-pct { font-size: 12px; color: rgba(255,255,255,.55); min-width: 38px; text-align: center; }
-
-/* ── Stage — fills remaining height ── */
-.lb-stage {
-  /* Take all remaining vertical space */
-  flex: 1; min-height: 0;
-  display: flex; align-items: center; justify-content: center;
+.lb-btn:hover { background: rgba(255,255,255,.2); color: white; }
+.lb-close { background: rgba(255,60,60,.2); }
+.lb-close:hover { background: rgba(255,60,60,.6); }
+.lb-zoom { font-size: 12px; color: rgba(255,255,255,.6); min-width: 36px; text-align: center; }
+.lightbox-stage {
+  flex: 1; display: flex; align-items: center; justify-content: center;
   position: relative;
-  /* padding leaves room for arrows */
-  padding: 12px 72px;
+  min-height: 0; /* critical: allow flex child to shrink so it fits viewport */
+  padding: 0 48px; /* space for arrows */
 }
-
-/* ── Media wrapper — positioned so clicking the dark area around it hits stage ── */
-.lb-media {
-  /* inline-block: the element is only as wide/tall as the image — dark area around it
-     still belongs to .lb-stage which calls handleBackdrop */
-  display: inline-flex;
-  align-items: center; justify-content: center;
-  max-width: 100%; max-height: 100%;
-  will-change: transform;
-  position: relative;
-}
-
-/* ── Image: fills available space, never overflows, never causes scroll ── */
-.lb-img {
-  /* Use max constraints relative to the viewport, not a scroll container */
-  max-width:  min(100%, calc(100vw - 160px));
-  max-height: calc(100vh - 120px);  /* 48px topbar + 12px padding*2 + 48px thumbs */
-  width: auto; height: auto;
-  object-fit: contain;
-  display: block; border-radius: 4px;
-  /* shadow so image edges are visible against dark bg */
-  box-shadow: 0 8px 40px rgba(0,0,0,.5);
-}
-.lb-video {
-  max-width:  min(100%, calc(100vw - 160px));
-  max-height: calc(100vh - 120px);
-  display: block; border-radius: 4px;
-  box-shadow: 0 8px 40px rgba(0,0,0,.5);
-}
-
-/* ── File card ── */
-.lb-file-card {
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  padding: 40px 56px; background: rgba(255,255,255,.06);
-  border-radius: 16px; border: 1px solid rgba(255,255,255,.12);
-}
-.lb-file-name { color: rgba(255,255,255,.85); font-size: 15px; font-weight: 600; text-align: center; word-break: break-all; max-width: 360px; }
-
-/* ── Navigation arrows ── */
-.lb-arrow {
+.lb-nav {
   position: absolute; top: 50%; transform: translateY(-50%);
   width: 48px; height: 48px; border-radius: 50%;
   background: rgba(255,255,255,.12); color: white;
   display: flex; align-items: center; justify-content: center;
-  border: none; cursor: pointer; z-index: 3;
+  border: none; cursor: pointer; z-index: 10;
   transition: background .15s; flex-shrink: 0;
 }
-.lb-arrow:hover:not(:disabled) { background: rgba(255,255,255,.28); }
-.lb-arrow:disabled { opacity: .2; cursor: default; pointer-events: none; }
-.lb-arrow-l { left: 12px; }
-.lb-arrow-r { right: 12px; }
-
-/* ── Thumbnail strip ── */
-.lb-thumbs {
-  display: flex; gap: 6px; padding: 8px 16px;
-  background: rgba(0,0,0,.45); overflow-x: auto;
+.lb-nav:hover:not(:disabled) { background: rgba(255,255,255,.25); }
+.lb-nav:disabled { opacity: .25; cursor: default; }
+.lb-prev { left: 10px; }
+.lb-next { right: 10px; }
+.lightbox-media-wrap {
+  /* inline-flex: clicking dark area AROUND the image hits the backdrop */
+  display: inline-flex; align-items: center; justify-content: center;
+  max-width: 100%; max-height: 100%;
+  will-change: transform;
+}
+.lightbox-img {
+  max-width: 100%; max-height: calc(100vh - 120px);
+  object-fit: contain; border-radius: 4px;
+  display: block;
+}
+.lightbox-video {
+  max-width: 100%; max-height: calc(100vh - 160px);
+  border-radius: 4px;
+}
+.lightbox-file-view {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 40px; background: rgba(255,255,255,.05);
+  border-radius: 16px; border: 1px solid rgba(255,255,255,.1);
+}
+.lightbox-file-icon { font-size: 64px; }
+.lightbox-file-name { color: white; font-size: 16px; font-weight: 600; text-align: center; }
+.lightbox-thumbs {
+  display: flex; gap: 6px; padding: 10px 16px;
+  background: rgba(0,0,0,.5); overflow-x: auto;
   flex-shrink: 0; justify-content: center;
 }
 .lb-thumb {
-  width: 52px; height: 52px; flex-shrink: 0;
-  border-radius: 7px; overflow: hidden;
+  width: 56px; height: 56px; flex-shrink: 0;
+  border-radius: 8px; overflow: hidden;
   border: 2px solid transparent; cursor: pointer;
   transition: border-color .15s, opacity .15s;
-  opacity: 0.55; background: rgba(255,255,255,.08);
+  opacity: 0.6; background: rgba(255,255,255,.1);
 }
 .lb-thumb.active { border-color: white; opacity: 1; }
 .lb-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.lb-thumb-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.7); font-size: 18px; }
+.lb-thumb-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; }
 
 /* ── Multi-image Grid ──────────────────────────────────────────────────── */
 .att-image-grid {
@@ -699,8 +674,9 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   cursor: zoom-in; background: var(--bg);
   min-height: 120px;
 }
-.att-image-wrap.single { max-height: 520px; min-height: auto; border-radius: 12px; }
+.att-image-wrap.single { border-radius: 12px; }
 .att-image-wrap img, .att-image { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s; }
+.att-image-wrap.single img { object-fit: contain; background: var(--bg); max-height: 80vh; }
 .att-image-wrap:hover img { transform: scale(1.02); }
 .att-overflow-badge {
   position: absolute; inset: 0;
@@ -708,8 +684,8 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   color: white; font-size: 26px; font-weight: 800;
 }
 .att-video-wrap { margin-top: 12px; border-radius: 12px; overflow: hidden; }
-.att-video-wrap.single { max-height: 520px; }
-.att-video { width: 100%; max-height: 520px; display: block; border-radius: 12px; }
+.att-video-wrap.single { }
+.att-video { width: 100%; max-height: 80vh; display: block; border-radius: 12px; }
 
 /* Files */
 .att-files-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
