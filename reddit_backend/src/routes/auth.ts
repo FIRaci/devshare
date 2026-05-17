@@ -64,8 +64,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
 
   // GET /auth/me/:username - get profile
   .get("/me/:username", async ({ params: { username }, set }) => {
-    const user = await db.user.findUnique({
-      where: { username },
+    const user = await db.user.findFirst({
+      where: { username: { equals: username, mode: 'insensitive' } },
       select: {
         id: true, username: true, email: true, bio: true, avatarColor: true, avatarUrl: true, bannerUrl: true, role: true,
         karma: true, createdAt: true, subscriptions: true,
@@ -87,19 +87,19 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
   // PATCH /auth/me/:username - update profile
   .patch("/me/:username", async ({ params: { username }, body, headers, set }) => {
     const userId = headers["x-user-id"];
-    const target = await db.user.findUnique({ where: { username } });
+    const target = await db.user.findFirst({ where: { username: { equals: username, mode: 'insensitive' } } });
     if (!target) { set.status = 404; return { error: "User not found" }; }
     if (!userId || target.id !== userId) {
       set.status = 403; return { error: "Forbidden" };
     }
     try {
       if (body.newUsername && body.newUsername !== username) {
-        const existing = await db.user.findUnique({ where: { username: body.newUsername } });
+        const existing = await db.user.findFirst({ where: { username: { equals: body.newUsername, mode: 'insensitive' } } });
         if (existing) { set.status = 400; return { error: "Username already taken" }; }
       }
 
       const user = await db.user.update({
-        where: { username },
+        where: { id: target.id },
         data: {
           username: body.newUsername ?? undefined,
           bio: body.bio ?? undefined,

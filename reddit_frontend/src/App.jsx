@@ -54,7 +54,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
   const handleVote = async (type) => {
     if (!user) { onAuthRequired?.(); return }
     const prev=localVotes; setLocalVotes(applyVote(localVotes,type,user.id))
-    try { await fetch(`${API}/comments/${comment.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({type})}) }
+    try { const res=await fetch(`${API}/comments/${comment.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed') }
     catch { setLocalVotes(prev) }
   }
 
@@ -113,7 +113,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
   useEffect(()=>setPost(init),[init])
   const handleVote=async(type)=>{
     const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type,user?.id)}))
-    try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})})}
+    try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
   const handleSave = (e) => {
@@ -164,7 +164,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
   useEffect(()=>{fetch2()},[fetch2])
   const handleVote=async(type)=>{
     const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type,user?.id)}))
-    try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})})}
+    try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
   const handleCommentFocus = () => {

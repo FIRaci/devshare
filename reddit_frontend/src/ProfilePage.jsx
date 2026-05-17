@@ -63,8 +63,12 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
     fetch(`${API}/auth/me/${username}`)
       .then(r => r.json())
       .then(d => {
+        if (d.error) { setLoading(false); return }
         setProfile(d)
         setEditForm({ newUsername: d.username, bio: d.bio ?? '', avatarColor: d.avatarColor ?? '#5C7CFA', avatarUrl: d.avatarUrl ?? '', bannerUrl: d.bannerUrl ?? '' })
+        if (d.username !== username && onUsernameChange) {
+          onUsernameChange(d.username)
+        }
         setLoading(false)
       })
       .catch(() => setLoading(false))
