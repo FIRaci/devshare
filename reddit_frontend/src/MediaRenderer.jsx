@@ -80,7 +80,7 @@ function formatSize(bytes) {
   return (bytes / 1048576).toFixed(1) + ' MB'
 }
 
-export default function MediaRenderer({ post }) {
+export default function MediaRenderer({ post, isFeed = false }) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
@@ -114,7 +114,11 @@ export default function MediaRenderer({ post }) {
             <div
               key={i}
               className={`att-image-wrap ${imageItems.length === 1 ? 'single' : ''}`}
-              onClick={e => { e.stopPropagation(); handleImageClick(att) }}
+              onClick={e => { 
+                if (isFeed) return // allow bubble
+                e.stopPropagation()
+                handleImageClick(att)
+              }}
             >
               <img src={att.url} alt={att.name || ''} className="att-image" loading="lazy" />
               {i === 3 && imageItems.length > 4 && (
@@ -127,7 +131,7 @@ export default function MediaRenderer({ post }) {
 
       {/* Videos */}
       {videoItems.map((att, i) => (
-        <div key={i} className="att-video-wrap" onClick={e => e.stopPropagation()}>
+        <div key={i} className="att-video-wrap" onClick={e => { if (!isFeed) e.stopPropagation() }}>
           <video src={att.url} controls className="att-video" />
         </div>
       ))}

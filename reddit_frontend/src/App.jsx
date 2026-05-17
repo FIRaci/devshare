@@ -129,7 +129,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
         <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?'transparent':(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{post.author?.avatarUrl?<img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
         <h3 className="post-title">{post.title}</h3>
         {post.content&&<p className="post-excerpt">{post.content}</p>}
-        <MediaRenderer post={post} />
+        <MediaRenderer post={post} isFeed={true} />
         {post.communityNote && (
           <div className="community-note">
             <strong>Community Note:</strong> {post.communityNote}
@@ -186,7 +186,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
           <h1 className="post-title" style={{fontSize:24,margin:'0 0 16px 0',color:'var(--text)',lineHeight:1.3}}>{post.title}</h1>
           {post.content && <div style={{marginBottom:16}}><MarkdownRenderer content={post.content} /></div>}
           
-          <MediaRenderer post={post}/>
+          <MediaRenderer post={post} />
           
           {post.communityNote && (
             <div className="community-note">

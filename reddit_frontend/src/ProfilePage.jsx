@@ -211,7 +211,7 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
                   </div>
                   <h3 className="post-title">{post.title}</h3>
                   {post.content && <div className="post-content-preview"><MarkdownRenderer content={post.content} compact /></div>}
-                  <MediaRenderer post={post} />
+                  <MediaRenderer post={post} isFeed={true} />
                   <div className="post-actions">
                     <span className="action-btn">
                       <ArrowBigUp size={14}/>
