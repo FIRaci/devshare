@@ -85,7 +85,13 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
   })
 
   // PATCH /auth/me/:username - update profile
-  .patch("/me/:username", async ({ params: { username }, body, set }) => {
+  .patch("/me/:username", async ({ params: { username }, body, headers, set }) => {
+    const userId = headers["x-user-id"];
+    const target = await db.user.findUnique({ where: { username } });
+    if (!target) { set.status = 404; return { error: "User not found" }; }
+    if (!userId || target.id !== userId) {
+      set.status = 403; return { error: "Forbidden" };
+    }
     try {
       if (body.newUsername && body.newUsername !== username) {
         const existing = await db.user.findUnique({ where: { username: body.newUsername } });

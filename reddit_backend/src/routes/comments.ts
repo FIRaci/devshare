@@ -12,11 +12,11 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     return await db.comment.findMany({
       where: { postId, parentId: null },
       include: {
-        author: { select: { id: true, username: true } },
+        author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
         votes: { select: { type: true, userId: true } },
         replies: {
           include: {
-            author: { select: { id: true, username: true } },
+            author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
             votes: { select: { type: true, userId: true } }
           },
           orderBy: { createdAt: "asc" }
@@ -36,7 +36,6 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
       return { error: "User not found" };
     }
 
-    // Verify post exists
     const post = await db.post.findUnique({ where: { id: body.postId } });
     if (!post) {
       set.status = 400;
@@ -52,14 +51,13 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
           parentId: body.parentId ?? null
         },
         include: {
-          author: { select: { id: true, username: true } },
+          author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
           votes: { select: { type: true, userId: true } }
         }
       });
 
       // Notification logic
       if (body.parentId) {
-        // This is a reply to another comment
         const parentComment = await db.comment.findUnique({ where: { id: body.parentId } });
         if (parentComment && parentComment.authorId !== user.id) {
           await db.notification.create({
@@ -73,7 +71,6 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
           });
         }
       } else {
-        // This is a direct comment on a post
         if (post.authorId !== user.id) {
           await db.notification.create({
             data: {
@@ -137,15 +134,19 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     })
   })
 
-  // DELETE a comment (Admin or Author)
+  // DELETE a comment (Admin, Author, or Moderator)
   .delete("/:id", async ({ params: { id }, headers, set }) => {
     const userId = headers["x-user-id"];
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
     const user = await db.user.findUnique({ where: { id: userId } });
-    const comment = await db.comment.findUnique({ where: { id } });
+    const comment = await db.comment.findUnique({
+      where: { id },
+      include: { post: { include: { subreddit: { include: { moderators: { select: { id: true } } } } } } }
+    });
     if (!comment || !user) { set.status = 404; return { error: "Not found" }; }
 
-    if (comment.authorId !== user.id && user.role !== "ADMIN") {
+    const isMod = comment.post.subreddit.moderators.some(m => m.id === user.id);
+    if (comment.authorId !== user.id && user.role !== "ADMIN" && !isMod) {
       set.status = 403; return { error: "Forbidden" };
     }
 
@@ -173,7 +174,7 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
         where: { id },
         data: { content: body.content },
         include: {
-          author: { select: { id: true, username: true } },
+          author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
           votes: { select: { type: true, userId: true } }
         }
       });

@@ -6,14 +6,14 @@ async function fetchLinkPreview(url: string) {
     const res = await fetch(url, { headers: { 'User-Agent': 'bot' }, signal: AbortSignal.timeout(3000) });
     const html = await res.text();
     const getMeta = (prop: string) => {
-      const match = html.match(new RegExp(`<meta\\s+(?:property|name)=["']${prop}["']\\s+content=["']([^"']+)["']`, 'i')) || 
+      const match = html.match(new RegExp(`<meta\\s+(?:property|name)=["']${prop}["']\\s+content=["']([^"']+)["']`, 'i')) ||
                     html.match(new RegExp(`<meta\\s+content=["']([^"']+)["']\\s+(?:property|name)=["']${prop}["']`, 'i'));
       return match ? match[1] : null;
     };
     const title = getMeta('og:title') || getMeta('twitter:title') || html.match(/<title>([^<]+)<\/title>/i)?.[1];
     const description = getMeta('og:description') || getMeta('twitter:description') || getMeta('description');
     const image = getMeta('og:image') || getMeta('twitter:image');
-    
+
     if (title || description || image) {
       return { url, title, description, image };
     }
@@ -21,11 +21,8 @@ async function fetchLinkPreview(url: string) {
   return null;
 }
 
-// Helper: get first user as mock session until JWT is implemented
-const getDefaultUser = async () => db.user.findFirst();
-
 export const postRoutes = new Elysia({ prefix: "/posts" })
-  // GET all posts - include vote count properly
+  // GET all posts
   .get("/", async () => {
     const cached = getCached<any>('posts:all');
     if (cached) return cached;
@@ -34,7 +31,9 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         author: {
           select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true }
         },
-        subreddit: true,
+        subreddit: {
+          include: { creator: { select: { id: true, username: true } } }
+        },
         _count: {
           select: { comments: true, votes: true }
         },
@@ -56,19 +55,24 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         author: {
           select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true }
         },
-        subreddit: true,
+        subreddit: {
+          include: {
+            creator: { select: { id: true, username: true } },
+            moderators: { select: { id: true } }
+          }
+        },
         votes: {
           select: { type: true, userId: true }
         },
         _count: { select: { comments: true, votes: true } },
         comments: {
-          where: { parentId: null }, // top-level only
+          where: { parentId: null },
           include: {
-            author: { select: { id: true, username: true } },
+            author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
             votes: { select: { type: true, userId: true } },
             replies: {
               include: {
-                author: { select: { id: true, username: true } },
+                author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
                 votes: { select: { type: true, userId: true } }
               }
             }
@@ -95,13 +99,11 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     if (!subreddit) { set.status = 400; return { error: "Subreddit not found" }; }
 
     try {
-      // Handle legacy single link preview
       let linkPreview = null;
       if (body.linkUrl) {
         linkPreview = await fetchLinkPreview(body.linkUrl);
       }
 
-      // Enrich LINK attachments with link previews
       let attachments = body.attachments ?? null;
       if (attachments && Array.isArray(attachments)) {
         attachments = await Promise.all(attachments.map(async (att: any) => {
@@ -126,7 +128,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         } as any,
         include: {
           author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
-          subreddit: true,
+          subreddit: { include: { creator: { select: { id: true, username: true } } } },
           _count: { select: { comments: true, votes: true } },
           votes: { select: { type: true, userId: true } }
         }
@@ -178,7 +180,6 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
       return { error: "User not found" };
     }
 
-    // Verify post exists
     const post = await db.post.findUnique({ where: { id } });
     if (!post) {
       set.status = 404;
@@ -186,14 +187,13 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     }
 
     try {
-      // If same vote type already exists, remove it (toggle off)
       const existing = await db.vote.findUnique({
         where: { userId_postId: { userId: user.id, postId: id } }
       });
 
       if (existing && existing.type === body.type) {
-        // toggle off
         await db.vote.delete({ where: { userId_postId: { userId: user.id, postId: id } } });
+        invalidateCache('posts:');
         return { action: "removed" };
       }
 
@@ -202,6 +202,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         update: { type: body.type },
         create: { type: body.type, userId: user.id, postId: id }
       });
+      invalidateCache('posts:');
       return vote;
     } catch (e) {
       console.error(e);
@@ -214,15 +215,19 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     })
   })
 
-  // DELETE a post (Admin or Author)
+  // DELETE a post (Admin, Author, or Moderator)
   .delete("/:id", async ({ params: { id }, headers, set }) => {
     const userId = headers["x-user-id"];
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
     const user = await db.user.findUnique({ where: { id: userId } });
-    const post = await db.post.findUnique({ where: { id } });
+    const post = await db.post.findUnique({
+      where: { id },
+      include: { subreddit: { include: { moderators: { select: { id: true } } } } }
+    });
     if (!post || !user) { set.status = 404; return { error: "Not found" }; }
 
-    if (post.authorId !== user.id && user.role !== "ADMIN") {
+    const isMod = post.subreddit.moderators.some(m => m.id === user.id);
+    if (post.authorId !== user.id && user.role !== "ADMIN" && !isMod) {
       set.status = 403; return { error: "Forbidden" };
     }
 
@@ -256,7 +261,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         },
         include: {
           author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
-          subreddit: true,
+          subreddit: { include: { creator: { select: { id: true, username: true } } } },
           _count: { select: { comments: true, votes: true } },
           votes: { select: { type: true, userId: true } }
         }

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
-import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Trash2 } from 'lucide-react'
+import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Trash2, Settings as SettingsIcon, Shield, Users, Crown } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import AuthPage from './AuthPage'
 import ProfilePage from './ProfilePage'
@@ -12,15 +12,15 @@ import './App.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const timeAgo = (d) => { const diff=Date.now()-new Date(d).getTime(),m=Math.floor(diff/60000); if(m<1)return 'just now'; if(m<60)return `${m}m`; const h=Math.floor(m/60); if(h<24)return `${h}h`; return `${Math.floor(h/24)}d` }
-const applyVote = (votes=[], type, uid='me') => { const ex=votes.find(v=>v.userId===uid); if(ex?.type===type) return votes.filter(v=>v.userId!==uid); return [...votes.filter(v=>v.userId!==uid),{type,userId:uid}] }
+const applyVote = (votes, type, uid) => { if(!uid)return votes; const ex=votes.find(v=>v.userId===uid); if(ex?.type===type) return votes.filter(v=>v.userId!==uid); return [...votes.filter(v=>v.userId!==uid),{type,userId:uid}] }
 const getScore = (votes=[]) => votes.reduce((a,v)=>a+(v.type==='UP'?1:-1),0)
-const myVote = (votes=[]) => votes.find(v=>v.userId==='me')?.type??null
+const myVote = (votes, uid) => votes?.find(v=>v.userId===uid)?.type??null
 
 // ── VoteButtons (filled icons when active) ───────────────────────────────────
 function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) {
   const { user } = useAuth()
   const score = getScore(votes)
-  const my = myVote(votes)
+  const my = myVote(votes, user?.id)
   const Wrap = vertical ? 'div' : React.Fragment
   const wrapProps = vertical ? { className:'vote-col' } : {}
   const handleClick = (e, type) => {
@@ -44,7 +44,7 @@ function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) 
 }
 
 // ── CommentItem ──────────────────────────────────────────────────────────────
-function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction }) {
+function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMod }) {
   const { user } = useAuth()
   const [showReply, setShowReply] = useState(false)
   const [replyText, setReplyText] = useState('')
@@ -53,7 +53,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction }) {
 
   const handleVote = async (type) => {
     if (!user) { onAuthRequired?.(); return }
-    const prev=localVotes; setLocalVotes(applyVote(localVotes,type))
+    const prev=localVotes; setLocalVotes(applyVote(localVotes,type,user.id))
     try { await fetch(`${API}/comments/${comment.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({type})}) }
     catch { setLocalVotes(prev) }
   }
@@ -71,7 +71,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction }) {
     } catch { toast.error('Failed') } finally { setSubmitting(false) }
   }
 
-  const my=myVote(localVotes),score=getScore(localVotes)
+  const my=myVote(localVotes,user?.id),score=getScore(localVotes)
   return (
     <div className={`comment-item depth-${Math.min(depth,4)}`}>
       <div className="comment-vote-bar">
@@ -84,9 +84,9 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction }) {
         <p className="c-content">{comment.content}</p>
         <div className="comment-actions">
           <button className="reply-btn" onClick={handleReplyClick}><MessageSquare size={11}/> Reply</button>
-          {(user?.role === 'ADMIN' || user?.username === comment.author?.username) && (
+          {(user?.role === 'ADMIN' || user?.username === comment.author?.username || isMod) && (
             <>
-              <button className="reply-btn" onClick={() => onAction?.('EDIT_COMMENT', comment)} style={{color:'var(--text-2)'}}>Edit</button>
+              {user?.username === comment.author?.username && <button className="reply-btn" onClick={() => onAction?.('EDIT_COMMENT', comment)} style={{color:'var(--text-2)'}}>Edit</button>}
               <button className="reply-btn" onClick={() => onAction?.('DELETE_COMMENT', comment)} style={{color:'var(--red)'}}>Delete</button>
             </>
           )}
@@ -112,7 +112,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
   const [post,setPost]=useState(init)
   useEffect(()=>setPost(init),[init])
   const handleVote=async(type)=>{
-    const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type)}))
+    const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type,user?.id)}))
     try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})})}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
@@ -156,13 +156,14 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
 function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }) {
   const { user } = useAuth()
   const [post,setPost]=useState(init)
+  const isMod = post?.subreddit?.moderators?.some(m => m.id === user?.id) ?? false
   const [comments,setComments]=useState([])
   const [commentText,setCommentText]=useState('')
   const [submitting,setSubmitting]=useState(false)
   const fetch2=useCallback(async()=>{try{const r=await fetch(`${API}/comments/post/${post.id}`);if(r.ok)setComments(await r.json())}catch{}},[post.id])
   useEffect(()=>{fetch2()},[fetch2])
   const handleVote=async(type)=>{
-    const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type)}))
+    const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type,user?.id)}))
     try{await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})})}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
@@ -221,7 +222,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
         }
         {comments.length===0
           ?<div className="empty-comments"><MessageSquare size={34}/><p>No comments yet.</p></div>
-          :<div className="comment-list">{comments.map(c=><CommentItem key={c.id} comment={{...c,postId:post.id}} onReply={fetch2} onAuthRequired={onAuthRequired} onAction={onAction}/>)}</div>
+          :<div className="comment-list">{comments.map(c=><CommentItem key={c.id} comment={{...c,postId:post.id}} onReply={fetch2} onAuthRequired={onAuthRequired} onAction={onAction} isMod={isMod}/>)}</div>
         }
       </div>
     </motion.div>
@@ -260,6 +261,11 @@ export default function App() {
   const [actionTitle,setActionTitle]=useState('')
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs] = useState(false)
+  const [showSubSettings, setShowSubSettings] = useState(false)
+  const [subSettingsTab, setSubSettingsTab] = useState('info')
+  const [members, setMembers] = useState([])
+  const [subDesc, setSubDesc] = useState('')
+  const modAddRef = useRef(null)
 
   const fetchNotifs = async () => {
     if (!user) { setNotifications([]); return; }
@@ -385,7 +391,25 @@ export default function App() {
                   <div className="notif-body">
                     {notifications.length === 0 ? <p className="notif-empty">No new notifications</p> : 
                       notifications.map(n => (
-                        <div key={n.id} className={`notif-item ${!n.isRead?'unread':''}`}>
+                        <div key={n.id} className={`notif-item ${!n.isRead?'unread':''}`}
+                          onClick={() => {
+                            if (n.postId) {
+                              // Fetch the post and navigate to it
+                              fetch(`${API}/posts/${n.postId}`).then(r=>r.json()).then(p=>{if(p&&!p.error)setSelectedPost(p)}).catch(()=>{})
+                              setShowNotifs(false)
+                            }
+                          }}
+                          style={{ cursor: n.postId ? 'pointer' : 'default' }}>
+                          <div className="notif-actor-avatar" style={{
+                            width: 24, height: 24, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+                            background: n.actor?.avatarUrl ? 'transparent' : (n.actor?.avatarColor ?? 'var(--primary)'),
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 10, color: 'white', fontWeight: 700
+                          }}>
+                            {n.actor?.avatarUrl
+                              ? <img src={n.actor.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                              : n.actor?.username?.[0]?.toUpperCase()}
+                          </div>
                           <div className="notif-text">
                             {n.type === 'POST_IN_SUBREDDIT' ? `u/${n.actor?.username} posted in a community you follow` : n.type === 'COMMENT_ON_POST' ? `u/${n.actor?.username} commented on your post` : `u/${n.actor?.username} replied to your comment`}
                           </div>
@@ -464,8 +488,11 @@ export default function App() {
               <motion.div key="feed" initial={{opacity:0}} animate={{opacity:1}}>
                 <div className="feed-header">
                   <h2>{selectedSub?`d/${selectedSub}`:'Home'}</h2>
-                  {selectedSub && user?.role === 'ADMIN' && (
-                    <button className="action-btn" onClick={() => setActionModal({ type: 'DELETE_SUB', post: { subreddit: { name: selectedSub } } })} style={{color:'var(--red)', marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '4px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px'}}><X size={14}/> Delete</button>
+                  {selectedSub && (user?.role === 'ADMIN' || subreddits.find(s=>s.name===selectedSub)?.creator?.id === user?.id) && (
+                    <>
+                      <button className="action-btn" onClick={() => { const sub=subreddits.find(s=>s.name===selectedSub); if(sub){setSubDesc(sub.description||'');fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>toast.error('Failed to load members'));setShowSubSettings(true)}}} style={{color:'var(--text-2)', marginLeft:'auto', display:'flex', alignItems:'center', gap:'4px', background:'transparent', border:'none', cursor:'pointer', fontSize:'13px'}}><SettingsIcon size={14}/> Settings</button>
+                      <button className="action-btn" onClick={() => setActionModal({ type: 'DELETE_SUB', post: { subreddit: { name: selectedSub } } })} style={{color:'var(--red)', display:'flex', alignItems:'center', gap:'4px', background:'transparent', border:'none', cursor:'pointer', fontSize:'13px'}}><X size={14}/> Delete</button>
+                    </>
                   )}
                   <div className="sort-tabs">
                     {[{id:'hot',icon:<Flame size={13}/>,label:'Hot'},{id:'new',icon:<Clock size={13}/>,label:'New'},{id:'top',icon:<Award size={13}/>,label:'Top'}].map(s=>(
@@ -546,6 +573,69 @@ export default function App() {
                   <button type="submit" className="btn-post" disabled={submittingSub}>{submittingSub ? 'Creating...' : 'Create'}</button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+        {showSubSettings && selectedSub && (
+          <div className="modal-backdrop" onClick={()=>setShowSubSettings(false)}>
+            <motion.div className="modal modal-wide" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
+              <div className="modal-head">
+                <h3><SettingsIcon size={16} style={{marginRight:6}}/> d/{selectedSub} Settings</h3>
+                <button onClick={()=>setShowSubSettings(false)}><X size={18}/></button>
+              </div>
+              <div className="modal-body" style={{display:'flex', gap:0, padding:0, maxHeight:'60vh'}}>
+                <div className="settings-tabs" style={{width:140, borderRight:'1px solid var(--border)', padding:'12px 0', flexShrink:0}}>
+                  {[{id:'info', label:'Info', icon:<Edit3 size={14}/>},{id:'members', label:'Members', icon:<Users size={14}/>},{id:'moderators', label:'Moderators', icon:<Shield size={14}/>}].map(tab=>(
+                    <button key={tab.id} onClick={()=>setSubSettingsTab(tab.id)} className={`settings-tab ${subSettingsTab===tab.id?'active':''}`} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 16px',border:'none',background:subSettingsTab===tab.id?'var(--surface-hover)':'transparent',color:'var(--text)',cursor:'pointer',fontSize:13,textAlign:'left'}}>{tab.icon}{tab.label}</button>
+                  ))}
+                </div>
+                <div style={{flex:1, padding:16, overflowY:'auto'}}>
+                  {subSettingsTab === 'info' && (
+                    <div>
+                      <label style={{fontSize:12,color:'var(--text-2)',display:'block',marginBottom:6}}>Description</label>
+                      <textarea value={subDesc} onChange={e=>setSubDesc(e.target.value)} rows={4} maxLength={500} style={{width:'100%'}}/>
+                      <div className="modal-footer" style={{marginTop:12}}>
+                        <button className="btn-outline" onClick={()=>setShowSubSettings(false)}>Cancel</button>
+                        <button className="btn-post" onClick={async()=>{
+                          const tid=toast.loading('Saving...');
+                          try{const r=await fetch(`${API}/subreddits/${selectedSub}`,{method:'PATCH',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({description:subDesc})});if(r.ok){toast.success('Saved!',{id:tid});setShowSubSettings(false);fetchAll()}else throw Error()}catch{toast.error('Failed',{id:tid})}
+                        }}>Save</button>
+                      </div>
+                    </div>
+                  )}
+                  {subSettingsTab === 'members' && (
+                    <div>
+                      <h4 style={{margin:'0 0 12px',fontSize:14}}>Members ({members.length})</h4>
+                      {members.length===0?<p style={{color:'var(--text-2)',fontSize:13}}>No members yet.</p>:
+                        members.map(m=><div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
+                          <div className="user-avatar" style={{width:28,height:28,borderRadius:'50%',background:m.avatarUrl?'transparent':(m.avatarColor??'var(--primary)'),overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'white',fontWeight:700,flexShrink:0}}>{m.avatarUrl?<img src={m.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:m.username?.[0]?.toUpperCase()}</div>
+                          <div style={{flex:1}}><span style={{fontSize:13}}>u/{m.username}</span> <span style={{fontSize:11,color:'var(--text-2)',marginLeft:4}}>({m.role})</span></div>
+                          <span style={{fontSize:11,color:'var(--text-3)'}}>{m.karma} karma</span>
+                        </div>)
+                      }
+                    </div>
+                  )}
+                  {subSettingsTab === 'moderators' && (
+                    <div>
+                      <h4 style={{margin:'0 0 12px',fontSize:14}}>Moderators</h4>
+                      {members.filter(m=>m.role==='OWNER'||m.role==='MODERATOR').map(m=><div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
+                        <div className="user-avatar" style={{width:28,height:28,borderRadius:'50%',background:m.avatarUrl?'transparent':(m.avatarColor??'var(--primary)'),overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'white',fontWeight:700,flexShrink:0}}>{m.avatarUrl?<img src={m.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:m.username?.[0]?.toUpperCase()}</div>
+                        <div style={{flex:1}}><span style={{fontSize:13}}>u/{m.username}</span> <span style={{fontSize:11,color:'var(--text-2)',marginLeft:4}}>{m.role==='OWNER'?<><Crown size={11} style={{color:'#f59e0b',display:'inline'}}/> Owner</>:'Moderator'}</span></div>
+                        {m.role==='MODERATOR' && (user?.role==='ADMIN'||subreddits.find(s=>s.name===selectedSub)?.creator?.id===user?.id) && (
+                          <button className="btn-outline" style={{padding:'3px 8px',fontSize:11,color:'var(--red)'}} onClick={async()=>{const tid=toast.loading('Removing...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators/${m.id}`,{method:'DELETE',headers:{'x-user-id':user.id}});if(r.ok){toast.success('Removed',{id:tid});fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else throw Error()}catch{toast.error('Failed',{id:tid})}}}>Remove</button>
+                        )}
+                      </div>)}
+                      {user?.role==='ADMIN'||subreddits.find(s=>s.name===selectedSub)?.creator?.id===user?.id?<div style={{marginTop:16}}>
+                        <p style={{fontSize:12,color:'var(--text-2)',marginBottom:8}}>Add a moderator by user ID:</p>
+                        <div style={{display:'flex',gap:8}}>
+                          <input ref={modAddRef} placeholder="User ID..." style={{flex:1}} onKeyDown={async(e)=>{if(e.key!=='Enter')return;const inp=e.target;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}/>
+                          <button className="btn-post" style={{padding:'6px 12px',fontSize:12}} onClick={async()=>{const inp=modAddRef.current;if(!inp)return;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}>Add</button>
+                        </div>
+                      </div>:null}
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

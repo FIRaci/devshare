@@ -25,10 +25,11 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  posts      Post[]
-  comments   Comment[]
-  votes      Vote[]
-  subreddits Subreddit[] @relation("SubredditModerators")
+  posts              Post[]
+  comments           Comment[]
+  votes              Vote[]
+  subreddits         Subreddit[] @relation("SubredditModerators")
+  createdSubreddits  Subreddit[] @relation("SubredditCreator")
   reports    Report[]    @relation("UserReports")
 
   subscriptions          Subscription[]
@@ -42,6 +43,9 @@ model Subreddit {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  creatorId String?
+  creator   User?   @relation("SubredditCreator", fields: [creatorId], references: [id])
 
   posts       Post[]
   moderators  User[]         @relation("SubredditModerators")

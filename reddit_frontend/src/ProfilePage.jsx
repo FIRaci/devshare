@@ -77,7 +77,7 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
     try {
       const res = await fetch(`${API}/auth/me/${username}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': me?.id || '' },
         body: JSON.stringify(editForm)
       })
       const data = await res.json()

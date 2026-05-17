@@ -67,7 +67,8 @@ export default function MarkdownRenderer({ content, compact = false }) {
           if (urlEnd !== -1) {
             const alt = text.slice(i + 2, altEnd)
             const url = text.slice(altEnd + 2, urlEnd)
-            tokens.push(<img key={i} src={url} alt={alt} className="md-inline-img" />)
+            const sanitized = /^(https?:\/\/)/i.test(url) ? url : 'about:blank'
+            tokens.push(<img key={i} src={sanitized} alt={alt} className="md-inline-img" />)
             i = urlEnd + 1; continue
           }
         }
@@ -80,7 +81,8 @@ export default function MarkdownRenderer({ content, compact = false }) {
           if (urlEnd !== -1) {
             const label = text.slice(i + 1, labelEnd)
             const url = text.slice(labelEnd + 2, urlEnd)
-            tokens.push(<a key={i} href={url} target="_blank" rel="noreferrer" className="md-link">{label}</a>)
+            const sanitized = /^(https?:\/\/)/i.test(url) ? url : 'about:blank'
+            tokens.push(<a key={i} href={sanitized} target="_blank" rel="noreferrer" className="md-link">{label}</a>)
             i = urlEnd + 1; continue
           }
         }
