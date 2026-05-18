@@ -196,6 +196,7 @@ input,textarea,select{font-family:inherit;}
 .post-actions{display:flex;gap:3px;flex-wrap:wrap;}
 .action-btn{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:7px;font-size:12px;font-weight:600;color:var(--text-2);transition:background .15s,color .15s;}
 .action-btn:hover{background:var(--primary-soft);color:var(--primary);}
+.action-btn.saved{color:var(--primary);}
 .meta-user:hover { color: var(--primary); text-decoration: underline; }
 
 .notif-head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }

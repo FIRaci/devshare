@@ -35,6 +35,7 @@ model User {
   subscriptions          Subscription[]
   notificationsReceived  Notification[] @relation("UserNotifications")
   notificationsTriggered Notification[] @relation("NotificationActor")
+  bookmarks              Bookmark[]
 }
 
 model Subreddit {
@@ -72,6 +73,7 @@ model Post {
 
   comments Comment[]
   votes    Vote[]
+  bookmarks Bookmark[]
 }
 
 model Comment {
@@ -159,4 +161,14 @@ model Notification {
   postId      String?
   commentId   String?
   subredditId String?
+}
+
+model Bookmark {
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@id([userId, postId])
 }

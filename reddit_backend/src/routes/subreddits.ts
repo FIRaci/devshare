@@ -28,6 +28,7 @@ export const subredditRoutes = new Elysia({ prefix: "/subreddits" })
             author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
             subreddit: { include: { creator: { select: { id: true, username: true } }, moderators: { select: { id: true } } } },
             votes: { select: { type: true, userId: true } },
+            bookmarks: { select: { userId: true } },
             _count: { select: { comments: true, votes: true } }
           },
           orderBy: { createdAt: "desc" }

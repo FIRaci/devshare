@@ -70,7 +70,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         id: true, username: true, email: true, bio: true, avatarColor: true, avatarUrl: true, bannerUrl: true, role: true,
         karma: true, createdAt: true, subscriptions: true,
         posts: {
-          include: { subreddit: true, _count: { select: { comments: true, votes: true } }, votes: { select: { type: true, userId: true } } },
+          include: { subreddit: true, _count: { select: { comments: true, votes: true } }, votes: { select: { type: true, userId: true } }, bookmarks: { select: { userId: true } } },
           orderBy: { createdAt: "desc" }, take: 10
         },
         comments: {

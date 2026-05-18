@@ -116,11 +116,21 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
     try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.stopPropagation()
     if (!user) { onAuthRequired?.(); return }
-    toast('Saved ⭐')
+    const prev = post.bookmarks
+    const isSaved = post.bookmarks?.some(b => b.userId === user.id)
+    setPost(p => ({ ...p, bookmarks: isSaved ? p.bookmarks.filter(b => b.userId !== user.id) : [...(p.bookmarks||[]), { userId: user.id }] }))
+    try {
+      const res = await fetch(`${API}/posts/${post.id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id } })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      if (data.saved) toast.success('Saved!')
+    } catch { setPost(p => ({ ...p, bookmarks: prev })); toast.error('Failed to save') }
   }
+
+  const isSaved = post.bookmarks?.some(b => b.userId === user?.id)
 
   return (
     <motion.div className="post-card" initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} whileHover={{y:-1}} layout>
@@ -137,8 +147,8 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
         )}
         <div className="post-actions">
           <button className="action-btn" onClick={e=>{e.stopPropagation();onClick()}}><MessageSquare size={13}/>{post._count?.comments??0} Comments</button>
-          <button className="action-btn" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(window.location.href);toast.success('Link copied!')}}><Share2 size={13}/> Share</button>
-          <button className="action-btn" onClick={handleSave}><Bookmark size={13}/> Save</button>
+          <button className="action-btn" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);toast.success('Link copied!')}}><Share2 size={13}/> Share</button>
+          <button className={`action-btn ${isSaved?'saved':''}`} onClick={handleSave}><Bookmark size={13} fill={isSaved?'currentColor':'none'}/> {isSaved?'Saved':'Save'}</button>
           <button className="action-btn" onClick={e=>{e.stopPropagation(); if(!user){onAuthRequired?.();return} onAction('REPORT', post)}} style={{color:'var(--red)'}}>Report</button>
           {user?.role === 'ADMIN' && (
             <>
@@ -195,6 +205,8 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
             </div>
           )}
           <div className="post-actions">
+            <button className="action-btn" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);toast.success('Link copied!')}}><Share2 size={13}/> Share</button>
+            <button className={`action-btn ${post.bookmarks?.some(b=>b.userId===user?.id)?'saved':''}`} onClick={async(e)=>{e.stopPropagation();if(!user){onAuthRequired?.();return}const prev=post.bookmarks;const isSaved=post.bookmarks?.some(b=>b.userId===user.id);setPost(p=>({...p,bookmarks:isSaved?p.bookmarks.filter(b=>b.userId!==user.id):[...(p.bookmarks||[]),{userId:user.id}]}));try{const res=await fetch(`${API}/posts/${post.id}/save`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id}});if(!res.ok)throw new Error();const data=await res.json();if(data.saved)toast.success('Saved!')}catch{setPost(p=>({...p,bookmarks:prev}));toast.error('Failed to save')}}}><Bookmark size={13} fill={post.bookmarks?.some(b=>b.userId===user?.id)?'currentColor':'none'}/> {post.bookmarks?.some(b=>b.userId===user?.id)?'Saved':'Save'}</button>
             <button className="action-btn" onClick={e=>{e.stopPropagation(); if(!user){onAuthRequired?.();return} onAction('REPORT', post)}} style={{color:'var(--red)'}}>Report</button>
             {(user?.role === 'ADMIN' || user?.username === post.author?.username) && (
               <>
@@ -281,6 +293,15 @@ export default function App() {
 
   useEffect(()=>{document.body.setAttribute('data-theme',isDark?'dark':'light')},[isDark])
   useEffect(()=>{fetchAll()},[selectedSub])
+
+  // Handle shared post URLs: /post/{id}
+  useEffect(() => {
+    const match = window.location.pathname.match(/\/post\/(.+)/)
+    if (match) {
+      fetch(`${API}/posts/${match[1]}`).then(r => r.json()).then(d => { if (d && !d.error) setSelectedPost(d) }).catch(() => {})
+      window.history.replaceState(null, '', '/')
+    }
+  }, [])
 
   const fetchAll=async(showLoader=true)=>{
     // Stale-while-revalidate: show cached data instantly

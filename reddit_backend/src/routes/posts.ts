@@ -63,6 +63,9 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         },
         votes: {
           select: { type: true, userId: true }
+        },
+        bookmarks: {
+          select: { userId: true }
         }
       },
       orderBy: { createdAt: "desc" }
@@ -88,6 +91,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         votes: {
           select: { type: true, userId: true }
         },
+        bookmarks: { select: { userId: true } },
         _count: { select: { comments: true, votes: true } },
         comments: {
           where: { parentId: null },
@@ -154,7 +158,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
           subreddit: { include: { creator: { select: { id: true, username: true } } } },
           _count: { select: { comments: true, votes: true } },
-          votes: { select: { type: true, userId: true } }
+          votes: { select: { type: true, userId: true } },
+          bookmarks: { select: { userId: true } }
         }
       });
 
@@ -239,6 +244,39 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     })
   })
 
+  // POST toggle save/unbookmark a post
+  .post("/:id/save", async ({ params: { id }, headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+
+    const post = await db.post.findUnique({ where: { id } });
+    if (!post) { set.status = 404; return { error: "Post not found" }; }
+
+    try {
+      const existing = await db.bookmark.findUnique({
+        where: { userId_postId: { userId, postId: id } }
+      });
+
+      if (existing) {
+        await db.bookmark.delete({
+          where: { userId_postId: { userId, postId: id } }
+        });
+        invalidateCache('posts:');
+        return { saved: false };
+      } else {
+        await db.bookmark.create({
+          data: { userId, postId: id }
+        });
+        invalidateCache('posts:');
+        return { saved: true };
+      }
+    } catch (e) {
+      console.error(e);
+      set.status = 400;
+      return { error: "Could not toggle save" };
+    }
+  })
+
   // DELETE a post (Admin, Author, or Moderator)
   .delete("/:id", async ({ params: { id }, headers, set }) => {
     const userId = headers["x-user-id"];
@@ -287,7 +325,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
           subreddit: { include: { creator: { select: { id: true, username: true } } } },
           _count: { select: { comments: true, votes: true } },
-          votes: { select: { type: true, userId: true } }
+          votes: { select: { type: true, userId: true } },
+          bookmarks: { select: { userId: true } }
         }
       });
       invalidateCache('posts:');
