@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, MessageSquare, ArrowBigUp, Calendar, Award,
-  FileText, Edit2, Check, X, LogOut, Palette, Upload, ExternalLink
+  FileText, Edit2, Check, X, LogOut, Palette, Upload, ExternalLink, Bookmark
 } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import toast from 'react-hot-toast'
@@ -34,6 +34,8 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
   const [editForm, setEditForm] = useState({ newUsername: '', bio: '', avatarColor: '#5C7CFA', avatarUrl: '', bannerUrl: '' })
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [savedPosts, setSavedPosts] = useState([])
+  const [savedLoading, setSavedLoading] = useState(false)
 
   const handleUpload = async (e, field) => {
     const file = e.target.files[0]
@@ -75,6 +77,17 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
   }
 
   useEffect(() => { fetchProfile() }, [username])
+
+  const fetchSaved = async () => {
+    if (!me?.id) return
+    setSavedLoading(true)
+    try {
+      const res = await fetch(`${API}/posts/saved`, { headers: { 'x-user-id': me.id } })
+      if (res.ok) setSavedPosts(await res.json())
+    } catch {} finally { setSavedLoading(false) }
+  }
+
+  useEffect(() => { if (tab === 'saved') fetchSaved() }, [tab])
 
   const saveProfile = async () => {
     setSaving(true)
@@ -198,6 +211,11 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
         <button className={tab === 'comments' ? 'active' : ''} onClick={() => setTab('comments')}>
           <MessageSquare size={14}/> Comments
         </button>
+        {isMe && (
+          <button className={tab === 'saved' ? 'active' : ''} onClick={() => setTab('saved')}>
+            <Bookmark size={14}/> Saved
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -240,6 +258,31 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
                   <span className="meta-text">{timeAgo(c.createdAt)}</span>
                 </div>
                 <p className="comment-preview-body">{c.content}</p>
+              </div>
+            ))
+        )}
+        {tab === 'saved' && (
+          savedPosts.length === 0
+            ? <div className="empty-feed"><Bookmark size={36}/><p>{savedLoading ? 'Loading...' : 'No saved posts yet.'}</p></div>
+            : savedPosts.map(post => (
+              <div key={post.id} className="post-card profile-post" onClick={() => onPostClick(post)}>
+                <div className="post-body">
+                  <div className="post-meta">
+                    <span className="sub-badge">d/{post.subreddit?.name}</span>
+                    <span className="meta-dot">·</span>
+                    <span className="meta-text">{timeAgo(post.createdAt)}</span>
+                  </div>
+                  <h3 className="post-title">{post.title}</h3>
+                  {post.content && <div className="post-content-preview"><MarkdownRenderer content={post.content} compact /></div>}
+                  <MediaRenderer post={post} isFeed={true} />
+                  <div className="post-actions">
+                    <span className="action-btn">
+                      <ArrowBigUp size={14}/>
+                      {(post.votes?.filter(v=>v.type==='UP').length ?? 0) - (post.votes?.filter(v=>v.type==='DOWN').length ?? 0)} votes
+                    </span>
+                    <span className="action-btn"><MessageSquare size={14}/> {post._count?.comments ?? 0} comments</span>
+                  </div>
+                </div>
               </div>
             ))
         )}

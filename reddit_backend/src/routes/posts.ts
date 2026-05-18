@@ -74,6 +74,28 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     return data;
   })
 
+  // GET saved/bookmarked posts for current user (before :id to avoid route conflict)
+  .get("/saved", async ({ headers, set }) => {
+    const userId = headers["x-user-id"];
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const bookmarks = await db.bookmark.findMany({
+      where: { userId },
+      include: {
+        post: {
+          include: {
+            author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
+            subreddit: { include: { creator: { select: { id: true, username: true } } } },
+            _count: { select: { comments: true, votes: true } },
+            votes: { select: { type: true, userId: true } },
+            bookmarks: { select: { userId: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    return bookmarks.map(b => b.post);
+  })
+
   // GET single post with full comments tree
   .get("/:id", async ({ params: { id }, set }) => {
     const post = await db.post.findUnique({
