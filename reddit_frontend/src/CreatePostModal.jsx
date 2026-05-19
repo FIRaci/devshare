@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Plus, Trash2, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -15,9 +15,11 @@ function insertAtCursor(textarea, before, after = '', defaultText = '') {
   return { value: newText, cursor: start + before.length + selected.length + after.length }
 }
 
-export default function CreatePostModal({ subreddits, joinedSubs, user, onClose, onSuccess }) {
+export default function CreatePostModal({ subreddits, joinedSubs, user, onClose, onSuccess, initialPost = null }) {
+  const isEdit = Boolean(initialPost)
   const [newPost, setNewPost] = useState({ title: '', content: '', subredditId: '' })
-  const [attachments, setAttachments] = useState([]) // [{type, url, name, size}]
+  const [attachments, setAttachments] = useState([]) // [{type, url, name, size, linkPreview?}]
+  const [attachmentsTouched, setAttachmentsTouched] = useState(false)
   const [linkInput, setLinkInput] = useState('')
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -47,7 +49,10 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     for (const file of Array.from(files)) {
       setUploadingIdx(attachments.length)
       const att = await uploadFile(file, type)
-      if (att) setAttachments(prev => [...prev, att])
+      if (att) {
+        setAttachments(prev => [...prev, att])
+        setAttachmentsTouched(true)
+      }
       setUploadingIdx(-1)
     }
   }
@@ -57,11 +62,45 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     let url = linkInput.trim()
     if (!url.startsWith('http')) url = 'https://' + url
     setAttachments(prev => [...prev, { type: 'LINK', url, name: url }])
+    setAttachmentsTouched(true)
     setLinkInput('')
     setShowLinkInput(false)
   }
 
-  const removeAttachment = (idx) => setAttachments(prev => prev.filter((_, i) => i !== idx))
+  const removeAttachment = (idx) => {
+    setAttachments(prev => prev.filter((_, i) => i !== idx))
+    setAttachmentsTouched(true)
+  }
+
+  const getInitialAttachments = (post) => {
+    if (post?.attachments && Array.isArray(post.attachments)) return post.attachments
+    if (post?.mediaUrl) {
+      return [{
+        type: post.mediaType || 'IMAGE',
+        url: post.mediaUrl,
+        name: post.mediaUrl.split('/').pop() || ''
+      }]
+    }
+    return []
+  }
+
+  useEffect(() => {
+    if (initialPost) {
+      setNewPost({
+        title: initialPost.title || '',
+        content: initialPost.content || '',
+        subredditId: initialPost.subredditId || initialPost.subreddit?.id || ''
+      })
+      setAttachments(getInitialAttachments(initialPost))
+      setAttachmentsTouched(false)
+      setPreview(false)
+    } else {
+      setNewPost({ title: '', content: '', subredditId: '' })
+      setAttachments([])
+      setAttachmentsTouched(false)
+      setPreview(false)
+    }
+  }, [initialPost])
 
   const toolbar = (before, after, defaultText, e) => {
     e.preventDefault()
@@ -76,22 +115,30 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     e.preventDefault()
     if (!newPost.title.trim() || !newPost.subredditId) return
     setSubmitting(true)
-    const tId = toast.loading('Posting...')
+    const tId = toast.loading(isEdit ? 'Saving...' : 'Posting...')
     try {
-      const res = await fetch(`${API}/posts`, {
-        method: 'POST',
+      const payload = isEdit
+        ? {
+            title: newPost.title,
+            content: newPost.content,
+            ...(attachmentsTouched ? { attachments } : {})
+          }
+        : {
+            title: newPost.title,
+            content: newPost.content,
+            subredditId: newPost.subredditId,
+            attachments: attachments.length ? attachments : undefined
+          }
+
+      const res = await fetch(`${API}/posts${isEdit ? `/${initialPost.id}` : ''}`, {
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-        body: JSON.stringify({
-          title: newPost.title,
-          content: newPost.content,
-          subredditId: newPost.subredditId,
-          attachments: attachments.length ? attachments : undefined
-        })
+        body: JSON.stringify(payload)
       })
       const d = await res.json()
       if (!res.ok) { toast.error(d.error || 'Failed', { id: tId }); return }
-      toast.success('Post created!', { id: tId })
-      onSuccess()
+      toast.success(isEdit ? 'Post updated!' : 'Post created!', { id: tId })
+      onSuccess?.(d)
       onClose()
     } catch { toast.error('Failed to connect', { id: tId }) }
     finally { setSubmitting(false) }
@@ -123,7 +170,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-head">
-          <h3>Create Post</h3>
+          <h3>{isEdit ? 'Edit Post' : 'Create Post'}</h3>
           <button onClick={onClose}><X size={18}/></button>
         </div>
         <form onSubmit={submit} className="modal-body">
@@ -132,6 +179,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
             value={newPost.subredditId}
             onChange={e => setNewPost(p => ({ ...p, subredditId: e.target.value }))}
             required
+            disabled={isEdit}
           >
             <option value="">Choose a community *</option>
             {[...subreddits].sort((a, b) => (joinedSubs.has(b.name) ? 1 : 0) - (joinedSubs.has(a.name) ? 1 : 0))
@@ -231,7 +279,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
           <div className="modal-footer">
             <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-post" disabled={submitting || !newPost.title.trim() || !newPost.subredditId}>
-              {submitting ? 'Posting...' : 'Post'}
+              {submitting ? (isEdit ? 'Saving...' : 'Posting...') : (isEdit ? 'Save' : 'Post')}
             </button>
           </div>
         </form>

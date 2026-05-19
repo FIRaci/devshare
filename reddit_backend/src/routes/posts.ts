@@ -337,11 +337,25 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     }
 
     try {
+      let attachments = body.attachments;
+      if (attachments !== undefined && Array.isArray(attachments)) {
+        attachments = await Promise.all(attachments.map(async (att: any) => {
+          if (att.type === 'LINK' && att.url) {
+            const preview = await fetchLinkPreview(att.url).catch(() => null);
+            return { ...att, linkPreview: preview };
+          }
+          return att;
+        }));
+      }
+
       const updatedPost = await db.post.update({
         where: { id },
         data: {
           title: body.title !== undefined ? body.title : undefined,
           content: body.content !== undefined ? body.content : undefined,
+          attachments: body.attachments !== undefined ? attachments : undefined,
+          mediaUrl: body.attachments !== undefined ? null : undefined,
+          mediaType: body.attachments !== undefined ? null : undefined,
         },
         include: {
           author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
@@ -361,6 +375,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     body: t.Object({
       title: t.Optional(t.String({ minLength: 1 })),
       content: t.Optional(t.String()),
+      attachments: t.Optional(t.Array(t.Any())),
     })
   })
 

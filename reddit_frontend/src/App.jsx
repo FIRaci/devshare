@@ -272,6 +272,7 @@ export default function App() {
   const [showAuth,setShowAuth]=useState(false)
   const [showUserMenu,setShowUserMenu]=useState(false)
   const [showCreatePost,setShowCreatePost]=useState(false)
+  const [editPost, setEditPost] = useState(null)
   const [showCreateSub,setShowCreateSub]=useState(false)
   const [sortBy,setSortBy]=useState('new')
   const [searchQuery,setSearchQuery]=useState('')
@@ -280,7 +281,6 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen]=useState(false)
   const [actionModal,setActionModal]=useState(null) // { type: 'REPORT'|'DELETE'|'NOTE', post }
   const [actionText,setActionText]=useState('')
-  const [actionTitle,setActionTitle]=useState('')
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [showSubSettings, setShowSubSettings] = useState(false)
@@ -388,6 +388,34 @@ export default function App() {
     })
 
   const navHome=()=>{setSelectedSub(null);setSelectedPost(null);setProfileUser(null)}
+
+  const handlePostUpdated = (updated) => {
+    if (!updated) return
+    setPosts(prev => prev.map(p => p.id === updated.id ? updated : p))
+    if (selectedPost?.id === updated.id) setSelectedPost(updated)
+    const cached = sessionStorage.getItem('ds:posts')
+    if (cached) {
+      try {
+        const list = JSON.parse(cached)
+        const idx = list.findIndex(p => p.id === updated.id)
+        if (idx !== -1) {
+          list[idx] = updated
+          sessionStorage.setItem('ds:posts', JSON.stringify(list))
+        }
+      } catch {}
+    }
+  }
+
+  const handleAction = (type, post) => {
+    if (type === 'EDIT_POST') {
+      setEditPost(post)
+      setActionModal(null)
+      return
+    }
+    setActionModal({ type, post })
+    if (type === 'EDIT_COMMENT') setActionText(post.content || '')
+    else setActionText('')
+  }
 
   return (
     <div className="app">
@@ -518,7 +546,7 @@ export default function App() {
             {profileUser ? (
               <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser} onProfileSaved={fetchAll}/>
             ) : selectedPost ? (
-              <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{setSelectedPost(null); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={(type, post)=>{setActionModal({type, post}); if(type==='EDIT_POST'){setActionTitle(post.title); setActionText(post.content||'');} else if(type==='EDIT_COMMENT'){setActionText(post.content||'');} else {setActionText(''); setActionTitle('');}}} onUserClick={setProfileUser}/>
+              <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{setSelectedPost(null); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/>
             ) : (
               <motion.div key="feed" initial={{opacity:0}} animate={{opacity:1}}>
                 <div className="feed-header">
@@ -545,7 +573,7 @@ export default function App() {
                   ?<div className="skeleton-list">{[1,2,3].map(n=><div key={n} className="skeleton"/>)}</div>
                   :displayPosts.length===0
                     ?<div className="empty-feed"><LayoutGrid size={40}/><p>No posts found</p><button className="btn-post" onClick={()=>{if(!user){setShowAuth(true);return};setShowCreatePost(true)}}>Create first post</button></div>
-                    :displayPosts.map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={(type, p)=>setActionModal({type, post: p})} onUserClick={setProfileUser}/>)
+                    :displayPosts.map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/> )
                 }
               </motion.div>
             )}
@@ -593,6 +621,16 @@ export default function App() {
             user={user}
             onClose={() => setShowCreatePost(false)}
             onSuccess={() => fetchAll()}
+          />
+        )}
+        {editPost && (
+          <CreatePostModal
+            subreddits={subreddits}
+            joinedSubs={joinedSubs}
+            user={user}
+            initialPost={editPost}
+            onClose={() => setEditPost(null)}
+            onSuccess={(updated) => { handlePostUpdated(updated); setEditPost(null) }}
           />
         )}
         {showCreateSub&&(
@@ -678,7 +716,7 @@ export default function App() {
           <div className="modal-backdrop" onClick={()=>setActionModal(null)}>
             <motion.div className="modal" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
               <div className="modal-head">
-                <h3>{actionModal.type === 'REPORT' ? 'Report Post' : actionModal.type === 'DELETE' ? 'Confirm Deletion' : actionModal.type === 'DELETE_SUB' ? 'Delete Community' : actionModal.type === 'DELETE_COMMENT' ? 'Delete Comment' : actionModal.type === 'EDIT_POST' ? 'Edit Post' : actionModal.type === 'EDIT_COMMENT' ? 'Edit Comment' : 'Add Community Note'}</h3>
+                <h3>{actionModal.type === 'REPORT' ? 'Report Post' : actionModal.type === 'DELETE' ? 'Confirm Deletion' : actionModal.type === 'DELETE_SUB' ? 'Delete Community' : actionModal.type === 'DELETE_COMMENT' ? 'Delete Comment' : actionModal.type === 'EDIT_COMMENT' ? 'Edit Comment' : 'Add Community Note'}</h3>
                 <button onClick={()=>setActionModal(null)}><X size={18}/></button>
               </div>
               <div className="modal-body">
@@ -688,9 +726,6 @@ export default function App() {
                   <p>Are you sure you want to permanently delete d/{actionModal.post.subreddit.name}? This action cannot be undone.</p>
                 ) : (
                   <>
-                    {actionModal.type === 'EDIT_POST' && (
-                      <input type="text" placeholder="Title *" value={actionTitle} onChange={e=>setActionTitle(e.target.value)} required style={{marginBottom:10}}/>
-                    )}
                     <textarea 
                       autoFocus
                       placeholder={actionModal.type === 'REPORT' ? "Reason for reporting..." : actionModal.type.startsWith('EDIT') ? "Content..." : "Enter your community note..."} 
@@ -733,15 +768,6 @@ export default function App() {
                           toast.success('Note added!', { id: tid });
                           if(selectedPost) setSelectedPost({...selectedPost, communityNote: actionText});
                           fetchAll(false);
-                        } else if (type === 'EDIT_POST') {
-                          if(!actionTitle.trim()) return toast.error('Title required', { id: tid });
-                          const res = await fetch(`${API}/posts/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ title: actionTitle, content: actionText }) });
-                          if(res.ok) {
-                            const updated = await res.json();
-                            toast.success('Post updated', { id: tid });
-                            if(selectedPost) setSelectedPost(updated);
-                            fetchAll(false);
-                          } else throw new Error();
                         } else if (type === 'EDIT_COMMENT') {
                           if(!actionText.trim()) return toast.error('Content required', { id: tid });
                           const res = await fetch(`${API}/comments/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ content: actionText }) });
@@ -750,7 +776,7 @@ export default function App() {
                             if(selectedPost) setSelectedPost({...selectedPost}); // Force reload comments
                           } else throw new Error();
                         }
-                        setActionModal(null); setActionText(''); setActionTitle('');
+                        setActionModal(null); setActionText('');
                       } catch { toast.error('Action failed', { id: tid }); }
                     }}
                   >

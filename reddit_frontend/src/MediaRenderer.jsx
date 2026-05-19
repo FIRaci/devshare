@@ -109,7 +109,7 @@ export default function MediaRenderer({ post, isFeed = false }) {
           return (
             <div key={i} className="yt-embed-wrap" onClick={e => e.stopPropagation()}>
               <iframe
-                src={`https://www.youtube.com/embed/${ytId}`}
+                src={`https://www.youtube-nocookie.com/embed/${ytId}`}
                 title={preview?.title || 'YouTube video'}
                 className="yt-embed"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
