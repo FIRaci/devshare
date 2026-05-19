@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, MessageSquare, ArrowBigUp, Calendar, Award,
-  FileText, Edit2, Check, X, LogOut, Palette, Upload, ExternalLink, Bookmark
+  FileText, Edit2, Check, X, Palette, Upload, Bookmark
 } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import toast from 'react-hot-toast'
@@ -26,7 +26,7 @@ const AVATAR_COLORS = [
 ]
 
 export default function ProfilePage({ username, onBack, onPostClick, onUsernameChange, onProfileSaved }) {
-  const { user: me, login, updateUser } = useAuth()
+  const { user: me, updateUser } = useAuth()
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('posts')
   const [loading, setLoading] = useState(true)
@@ -60,7 +60,7 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
     }
   }
 
-  const fetchProfile = () => {
+  const fetchProfile = useCallback(() => {
     setLoading(true)
     fetch(`${API}/auth/me/${username}`)
       .then(r => r.json())
@@ -74,20 +74,38 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }
+  }, [username, onUsernameChange])
 
-  useEffect(() => { fetchProfile() }, [username])
+  useEffect(() => {
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) fetchProfile()
+    })
+    return () => { active = false }
+  }, [fetchProfile])
 
-  const fetchSaved = async () => {
+  const fetchSaved = useCallback(async () => {
     if (!me?.id) return
     setSavedLoading(true)
     try {
       const res = await fetch(`${API}/posts/saved`, { headers: { 'x-user-id': me.id } })
       if (res.ok) setSavedPosts(await res.json())
-    } catch {} finally { setSavedLoading(false) }
-  }
+    } catch {
+      // Ignored
+    } finally {
+      setSavedLoading(false)
+    }
+  }, [me])
 
-  useEffect(() => { if (tab === 'saved') fetchSaved() }, [tab])
+  useEffect(() => {
+    if (tab === 'saved') {
+      let active = true
+      Promise.resolve().then(() => {
+        if (active) fetchSaved()
+      })
+      return () => { active = false }
+    }
+  }, [tab, fetchSaved])
 
   const saveProfile = async () => {
     setSaving(true)

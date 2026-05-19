@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Plus, Trash2, Eye } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MarkdownRenderer from './MarkdownRenderer'
 
@@ -84,7 +84,9 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     return []
   }
 
-  useEffect(() => {
+  // Reset/adjust state in the render phase when initialPost changes
+  const [prevInitialPost, setPrevInitialPost] = useState(initialPost)
+  if (initialPost !== prevInitialPost) {
     if (initialPost) {
       setNewPost({
         title: initialPost.title || '',
@@ -100,7 +102,8 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
       setAttachmentsTouched(false)
       setPreview(false)
     }
-  }, [initialPost])
+    setPrevInitialPost(initialPost)
+  }
 
   const toolbar = (before, after, defaultText, e) => {
     e.preventDefault()

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 
 // Inline markdown renderer supporting:
 // **bold**, *italic*, `code`, ```code blocks```, # headings, > blockquote,

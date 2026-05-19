@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
-import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Trash2, Settings as SettingsIcon, Shield, Users, Crown } from 'lucide-react'
+import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Settings as SettingsIcon, Shield, Users, Crown } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import AuthPage from './AuthPage'
 import ProfilePage from './ProfilePage'
@@ -110,7 +110,11 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
 function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick }) {
   const { user } = useAuth()
   const [post,setPost]=useState(init)
-  useEffect(()=>setPost(init),[init])
+  const [prevInit, setPrevInit] = useState(init)
+  if (init !== prevInit) {
+    setPost(init)
+    setPrevInit(init)
+  }
   const invalidateCache = () => {
     const cached = sessionStorage.getItem('ds:posts')
     if (cached) {
@@ -180,8 +184,14 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
   const [comments,setComments]=useState([])
   const [commentText,setCommentText]=useState('')
   const [submitting,setSubmitting]=useState(false)
-  const fetch2=useCallback(async()=>{try{const r=await fetch(`${API}/comments/post/${post.id}`);if(r.ok)setComments(await r.json())}catch{}},[post.id])
-  useEffect(()=>{fetch2()},[fetch2])
+  const fetch2=useCallback(async()=>{try{const r=await fetch(`${API}/comments/post/${post.id}`);if(r.ok)setComments(await r.json())}catch{/* Ignored */}},[post.id])
+  useEffect(() => {
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) fetch2()
+    })
+    return () => { active = false }
+  }, [fetch2])
   const handleVote=async(type)=>{
     const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type,user?.id)}))
     try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
@@ -262,13 +272,17 @@ export default function App() {
   const [selectedPost,setSelectedPost]=useState(null)
   const [profileUser,setProfileUser]=useState(null)
   const [joinedSubs,setJoinedSubs]=useState(new Set())
-  useEffect(() => {
+  const [prevUser, setPrevUser] = useState(user)
+  const [prevSubs, setPrevSubs] = useState(subreddits)
+  if (user !== prevUser || subreddits !== prevSubs) {
     if (user?.subscriptions) {
       setJoinedSubs(new Set(user.subscriptions.map(s => subreddits.find(sub => sub.id === s.subredditId)?.name).filter(Boolean)))
     } else {
       setJoinedSubs(new Set())
     }
-  }, [user, subreddits])
+    setPrevUser(user)
+    setPrevSubs(subreddits)
+  }
   const [showAuth,setShowAuth]=useState(false)
   const [showUserMenu,setShowUserMenu]=useState(false)
   const [showCreatePost,setShowCreatePost]=useState(false)
@@ -289,20 +303,69 @@ export default function App() {
   const [subDesc, setSubDesc] = useState('')
   const modAddRef = useRef(null)
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     if (!user) { setNotifications([]); return; }
     try {
       const res = await fetch(`${API}/notifications`, { headers: { 'x-user-id': user.id } })
       if (res.ok) setNotifications(await res.json())
-    } catch {}
-  }
-  useEffect(() => { fetchNotifs() }, [user])
+    } catch {
+      // Ignored
+    }
+  }, [user])
+  useEffect(() => {
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) fetchNotifs()
+    })
+    return () => { active = false }
+  }, [fetchNotifs])
+
+  const fetchAll = useCallback(async (showLoader = true) => {
+    // Stale-while-revalidate: show cached data instantly
+    const cachedPosts = sessionStorage.getItem('ds:posts')
+    const cachedSubs = sessionStorage.getItem('ds:subs')
+    if (cachedPosts && cachedSubs && showLoader) {
+      try {
+        setPosts(selectedSub ? [] : JSON.parse(cachedPosts))
+        setSubreddits(JSON.parse(cachedSubs))
+        setLoading(false)
+      } catch {
+        // Ignored
+      }
+    } else if (showLoader) {
+      setLoading(true)
+    }
+    try {
+      const [pr, sr] = await Promise.all([
+        fetch(selectedSub ? `${API}/subreddits/${selectedSub}` : `${API}/posts`),
+        fetch(`${API}/subreddits`)
+      ])
+      const pd = await pr.json()
+      const sd = await sr.json()
+      const newPosts = selectedSub ? (pd.posts ?? []) : pd
+      setPosts(newPosts)
+      setSubreddits(sd)
+      // Cache for next visit
+      if (!selectedSub) sessionStorage.setItem('ds:posts', JSON.stringify(newPosts))
+      sessionStorage.setItem('ds:subs', JSON.stringify(sd))
+    } catch {
+      toast.error('Failed to load')
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedSub])
 
   // Right sidebar only shows on main feed (not profile, not post detail)
   const showRightSidebar = !profileUser && !selectedPost
 
-  useEffect(()=>{document.body.setAttribute('data-theme',isDark?'dark':'light')},[isDark])
-  useEffect(()=>{fetchAll()},[selectedSub])
+  useEffect(() => { document.body.setAttribute('data-theme', isDark ? 'dark' : 'light') }, [isDark])
+  useEffect(() => {
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) fetchAll()
+    })
+    return () => { active = false }
+  }, [fetchAll])
 
   // Handle shared post URLs: #/post/{id}
   const openSharedPost = () => {
@@ -312,30 +375,6 @@ export default function App() {
     window.history.replaceState(null, '', '/')
   }
   useEffect(() => { openSharedPost(); window.addEventListener('hashchange', openSharedPost); return () => window.removeEventListener('hashchange', openSharedPost) }, [])
-
-  const fetchAll=async(showLoader=true)=>{
-    // Stale-while-revalidate: show cached data instantly
-    const cachedPosts = sessionStorage.getItem('ds:posts')
-    const cachedSubs = sessionStorage.getItem('ds:subs')
-    if (cachedPosts && cachedSubs && showLoader) {
-      try {
-        setPosts(selectedSub ? [] : JSON.parse(cachedPosts))
-        setSubreddits(JSON.parse(cachedSubs))
-        setLoading(false)
-      } catch {}
-    } else if (showLoader) {
-      setLoading(true)
-    }
-    try{
-      const [pr,sr]=await Promise.all([fetch(selectedSub?`${API}/subreddits/${selectedSub}`:`${API}/posts`),fetch(`${API}/subreddits`)])
-      const pd=await pr.json(),sd=await sr.json()
-      const newPosts = selectedSub?(pd.posts??[]):pd
-      setPosts(newPosts); setSubreddits(sd)
-      // Cache for next visit
-      if (!selectedSub) sessionStorage.setItem('ds:posts', JSON.stringify(newPosts))
-      sessionStorage.setItem('ds:subs', JSON.stringify(sd))
-    }catch{toast.error('Failed to load')}finally{setLoading(false)}
-  }
 
   const [submittingSub,setSubmittingSub]=useState(false)
 
@@ -402,7 +441,9 @@ export default function App() {
           list[idx] = updated
           sessionStorage.setItem('ds:posts', JSON.stringify(list))
         }
-      } catch {}
+      } catch {
+        // Ignored
+      }
     }
   }
 

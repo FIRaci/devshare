@@ -9,12 +9,17 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
   const dragRef = useRef(null) // { startX, startY, startOffsetX, startOffsetY }
   const isDragging = useRef(false)
 
+  // Reset zoom/pan in the render phase when switching items
+  const [prevIdx, setPrevIdx] = useState(idx)
+  if (idx !== prevIdx) {
+    setZoom(1)
+    setOffset({ x: 0, y: 0 })
+    setPrevIdx(idx)
+  }
+
   const current = items[idx]
   const isImage = current?.type === 'IMAGE' || /\.(gif|jpe?g|png|webp|svg|bmp)(\?|$)/i.test(current?.url || '')
   const isVideo = current?.type === 'VIDEO' || /\.(mp4|webm|mov|avi)(\?|$)/i.test(current?.url || '')
-
-  // Reset zoom/pan when switching items
-  useEffect(() => { setZoom(1); setOffset({ x: 0, y: 0 }) }, [idx])
 
   // Lock body scroll
   useEffect(() => {
