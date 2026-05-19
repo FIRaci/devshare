@@ -547,6 +547,8 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 }
 .link-twitter .link-platform-badge { color: #1DA1F2; }
 .link-facebook .link-platform-badge { color: #1877F2; }
+.link-instagram .link-platform-badge { color: #E1306C; }
+.link-tiktok .link-platform-badge { color: #00f2fe; }
 
 /* YouTube embed */
 .yt-embed-wrap {

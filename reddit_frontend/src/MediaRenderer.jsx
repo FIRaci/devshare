@@ -3,6 +3,26 @@ import { AnimatePresence } from 'framer-motion'
 import Lightbox from './Lightbox'
 import { FileText, ExternalLink, Play, Globe, MessageCircle } from 'lucide-react'
 
+const FacebookIcon = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-facebook" style={{ marginRight: 4 }}>
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+  </svg>
+)
+
+const InstagramIcon = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-instagram" style={{ marginRight: 4 }}>
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+)
+
+const TiktokIcon = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-music" style={{ marginRight: 4 }}>
+    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+)
+
 function getMediaItems(post) {
   const items = []
   if (post.attachments && Array.isArray(post.attachments)) {
@@ -31,6 +51,14 @@ function isTwitterUrl(url) {
 
 function isFacebookUrl(url) {
   return /(?:facebook\.com|fb\.com)\/.+/i.test(url)
+}
+
+function isInstagramUrl(url) {
+  return /(?:instagram\.com|instagr\.am)\/.+/i.test(url)
+}
+
+function isTiktokUrl(url) {
+  return /(?:tiktok\.com)\/.+/i.test(url)
 }
 
 export default function MediaRenderer({ post, isFeed = false }) {
@@ -104,6 +132,8 @@ export default function MediaRenderer({ post, isFeed = false }) {
         const ytId = platform === 'youtube' && preview?.videoId ? preview.videoId : extractYoutubeId(att.url)
         const isTwitter = platform === 'twitter' || isTwitterUrl(att.url)
         const isFacebook = platform === 'facebook' || isFacebookUrl(att.url)
+        const isInstagram = platform === 'instagram' || isInstagramUrl(att.url)
+        const isTiktok = platform === 'tiktok' || isTiktokUrl(att.url)
 
         if (ytId) {
           return (
@@ -121,13 +151,19 @@ export default function MediaRenderer({ post, isFeed = false }) {
         }
 
         return (
-          <a key={i} href={att.url} target="_blank" rel="noreferrer" className={`link-preview-card ${isTwitter ? 'link-twitter' : isFacebook ? 'link-facebook' : ''}`} onClick={e => e.stopPropagation()}>
+          <a key={i} href={att.url} target="_blank" rel="noreferrer" className={`link-preview-card ${isTwitter ? 'link-twitter' : isFacebook ? 'link-facebook' : isInstagram ? 'link-instagram' : isTiktok ? 'link-tiktok' : ''}`} onClick={e => e.stopPropagation()}>
             {preview?.image && !isTwitter && !isFacebook && <img src={preview.image} alt="" />}
             {isTwitter && (
               <div className="link-platform-badge"><MessageCircle size={14}/> X / Twitter</div>
             )}
             {isFacebook && (
-              <div className="link-platform-badge"><Globe size={14}/> Facebook</div>
+              <div className="link-platform-badge"><FacebookIcon size={14}/> Facebook</div>
+            )}
+            {isInstagram && (
+              <div className="link-platform-badge"><InstagramIcon size={14}/> Instagram</div>
+            )}
+            {isTiktok && (
+              <div className="link-platform-badge"><TiktokIcon size={14}/> TikTok</div>
             )}
             {ytId && (
               <div className="link-platform-badge"><Play size={14} style={{color:'#FF0000'}}/> YouTube</div>
