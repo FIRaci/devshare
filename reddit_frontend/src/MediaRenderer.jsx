@@ -1,27 +1,47 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import Lightbox from './Lightbox'
-import { FileText, ExternalLink, Play, Globe, MessageCircle } from 'lucide-react'
+import { FileText, Play, MessageCircle, Music } from 'lucide-react'
 
 const FacebookIcon = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-facebook" style={{ marginRight: 4 }}>
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-  </svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
 )
 
 const InstagramIcon = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-instagram" style={{ marginRight: 4 }}>
-    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-  </svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg>
 )
 
-const TiktokIcon = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-music" style={{ marginRight: 4 }}>
-    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
-  </svg>
-)
+const platformMeta = {
+  twitter:  { icon: MessageCircle, label: 'X / Twitter',  color: '#1DA1F2' },
+  facebook: { icon: FacebookIcon,  label: 'Facebook',    color: '#1877F2' },
+  instagram:{ icon: InstagramIcon, label: 'Instagram',   color: '#E1306C' },
+  tiktok:   { icon: Music,         label: 'TikTok',      color: '#00f2fe' },
+  youtube:  { icon: Play,          label: 'YouTube',     color: '#FF0000' },
+}
+
+function EmbedIframe({ html, title }) {
+  const ref = useRef(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    if (ref.current) {
+      const doc = ref.current.contentDocument
+      if (doc) {
+        doc.open()
+        doc.write(html)
+        doc.close()
+      }
+      setLoaded(true)
+    }
+  }, [html])
+
+  return (
+    <div className="embed-iframe-wrap">
+      {!loaded && <div className="embed-loader" />}
+      <iframe ref={ref} title={title || 'Embed'} className="embed-iframe" sandbox="allow-scripts allow-same-origin allow-presentation" style={{ opacity: loaded ? 1 : 0 }} />
+    </div>
+  )
+}
 
 function getMediaItems(post) {
   const items = []
@@ -43,22 +63,6 @@ function formatSize(bytes) {
 function extractYoutubeId(url) {
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-z0-9_-]{11})/i)
   return m ? m[1] : null
-}
-
-function isTwitterUrl(url) {
-  return /(?:twitter\.com|x\.com)\/\w+\/status\//i.test(url)
-}
-
-function isFacebookUrl(url) {
-  return /(?:facebook\.com|fb\.com)\/.+/i.test(url)
-}
-
-function isInstagramUrl(url) {
-  return /(?:instagram\.com|instagr\.am)\/.+/i.test(url)
-}
-
-function isTiktokUrl(url) {
-  return /(?:tiktok\.com)\/.+/i.test(url)
 }
 
 export default function MediaRenderer({ post, isFeed = false }) {
@@ -88,15 +92,7 @@ export default function MediaRenderer({ post, isFeed = false }) {
       {imageItems.length > 0 && (
         <div className={gridClass}>
           {displayImages.map((att, i) => (
-            <div
-              key={i}
-              className={`att-image-wrap ${imageItems.length === 1 ? 'single' : ''}`}
-              onClick={e => {
-                if (isFeed) return
-                e.stopPropagation()
-                handleImageClick(att)
-              }}
-            >
+            <div key={i} className={`att-image-wrap ${imageItems.length === 1 ? 'single' : ''}`} onClick={e => { if (!isFeed) { e.stopPropagation(); handleImageClick(att) } }}>
               <img src={att.url} alt={att.name || ''} className="att-image" loading="lazy" />
               {i === 3 && imageItems.length > 4 && (
                 <div className="att-overflow-badge">+{imageItems.length - 4}</div>
@@ -130,52 +126,41 @@ export default function MediaRenderer({ post, isFeed = false }) {
         const preview = att.linkPreview
         const platform = preview?.platform
         const ytId = platform === 'youtube' && preview?.videoId ? preview.videoId : extractYoutubeId(att.url)
-        const isTwitter = platform === 'twitter' || isTwitterUrl(att.url)
-        const isFacebook = platform === 'facebook' || isFacebookUrl(att.url)
-        const isInstagram = platform === 'instagram' || isInstagramUrl(att.url)
-        const isTiktok = platform === 'tiktok' || isTiktokUrl(att.url)
 
         if (ytId) {
           return (
             <div key={i} className="yt-embed-wrap" onClick={e => e.stopPropagation()}>
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${ytId}`}
-                title={preview?.title || 'YouTube video'}
-                className="yt-embed"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                loading="lazy"
-              />
+              <iframe src={`https://www.youtube-nocookie.com/embed/${ytId}`} title={preview?.title || 'YouTube video'} className="yt-embed" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen loading="lazy" />
             </div>
           )
         }
 
+        if (preview?.embedHtml) {
+          return <EmbedIframe key={i} html={preview.embedHtml} title={preview?.title} />
+        }
+
+        const meta = platformMeta[platform] || null
+        const hostname = (() => { try { return new URL(att.url).hostname.replace('www.', '') } catch { return att.url } })()
+
         return (
-          <a key={i} href={att.url} target="_blank" rel="noreferrer" className={`link-preview-card ${isTwitter ? 'link-twitter' : isFacebook ? 'link-facebook' : isInstagram ? 'link-instagram' : isTiktok ? 'link-tiktok' : ''}`} onClick={e => e.stopPropagation()}>
-            {preview?.image && !isTwitter && !isFacebook && <img src={preview.image} alt="" />}
-            {isTwitter && (
-              <div className="link-platform-badge"><MessageCircle size={14}/> X / Twitter</div>
+          <a key={i} href={att.url} target="_blank" rel="noreferrer" className={`link-preview-card${meta ? ` link-${platform}` : ''}`} onClick={e => e.stopPropagation()}>
+            {preview?.image && (
+              <div className="link-card-img-wrap">
+                <img src={preview.image} alt="" />
+              </div>
             )}
-            {isFacebook && (
-              <div className="link-platform-badge"><FacebookIcon size={14}/> Facebook</div>
-            )}
-            {isInstagram && (
-              <div className="link-platform-badge"><InstagramIcon size={14}/> Instagram</div>
-            )}
-            {isTiktok && (
-              <div className="link-platform-badge"><TiktokIcon size={14}/> TikTok</div>
-            )}
-            {ytId && (
-              <div className="link-platform-badge"><Play size={14} style={{color:'#FF0000'}}/> YouTube</div>
-            )}
-            <div className="link-preview-info">
-              <h4>{preview?.title || att.url}</h4>
-              {preview?.description && <p>{preview.description}</p>}
-              <small>
-                {preview?.siteName && <span className="link-site-name">{preview.siteName}</span>}
-                <ExternalLink size={10} style={{ marginRight: 4 }} />
-                {new URL(att.url).hostname.replace('www.', '')}
-              </small>
+            <div className="link-card-body">
+              {meta && (
+                <div className="link-card-platform">
+                  <meta.icon size={12} /> {meta.label}
+                </div>
+              )}
+              <h4 className="link-card-title">{preview?.title || hostname}</h4>
+              {preview?.description && <p className="link-card-desc">{preview.description}</p>}
+              <div className="link-card-meta">
+                {preview?.siteName && <span>{preview.siteName}</span>}
+                <span>{hostname}</span>
+              </div>
             </div>
           </a>
         )
@@ -183,11 +168,7 @@ export default function MediaRenderer({ post, isFeed = false }) {
 
       <AnimatePresence>
         {lightboxOpen && lightboxItems.length > 0 && (
-          <Lightbox
-            items={lightboxItems}
-            startIndex={lightboxIndex}
-            onClose={() => setLightboxOpen(false)}
-          />
+          <Lightbox items={lightboxItems} startIndex={lightboxIndex} onClose={() => setLightboxOpen(false)} />
         )}
       </AnimatePresence>
     </>
