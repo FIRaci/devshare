@@ -12,6 +12,7 @@ import { db } from "./db";
 import { authGuard } from "./auth-guard";
 import { rateLimit } from "./rate-limiter";
 import { mkdir } from "fs/promises";
+import { randomUUID } from "crypto";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const ALLOWED_MIME_PREFIXES = ["image/", "video/", "application/pdf", "text/plain"];
@@ -20,13 +21,7 @@ function isAllowedMime(mime: string): boolean {
   return ALLOWED_MIME_PREFIXES.some(p => mime.startsWith(p));
 }
 
-if (!process.env.JWT_SECRET) {
-  if (process.env.NODE_ENV === "production") {
-    console.error("FATAL: JWT_SECRET must be set in production.");
-    process.exit(1);
-  }
-  console.warn("WARNING: JWT_SECRET not set. Using insecure fallback.");
-}
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID();
 
 const app = new Elysia()
   .onRequest(({ request, set }) => {
@@ -39,7 +34,7 @@ const app = new Elysia()
   .use(cors())
   .use(jwt({
     name: "jwt",
-    secret: process.env.JWT_SECRET || "dev-secret-change-in-production",
+    secret: JWT_SECRET,
   }))
   .use(authGuard)
   .use(staticPlugin({ assets: "public", prefix: "/" }))
