@@ -276,6 +276,11 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     }
 
     try {
+      if (body.subredditId) {
+        const newSub = await db.subreddit.findUnique({ where: { id: body.subredditId } });
+        if (!newSub) { set.status = 400; return { error: "Subreddit not found" }; }
+      }
+
       let attachments = body.attachments;
       if (attachments !== undefined && Array.isArray(attachments)) {
         attachments = await Promise.all(attachments.map(async (att: any) => {
@@ -292,6 +297,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         data: {
           title: body.title !== undefined ? body.title : undefined,
           content: body.content !== undefined ? body.content : undefined,
+          subredditId: body.subredditId !== undefined ? body.subredditId : undefined,
           attachments: body.attachments !== undefined ? attachments : undefined,
           mediaUrl: body.attachments !== undefined ? null : undefined,
           mediaType: body.attachments !== undefined ? null : undefined,
@@ -315,6 +321,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
       title: t.Optional(t.String({ minLength: 1 })),
       content: t.Optional(t.String()),
       attachments: t.Optional(t.Array(t.Any())),
+      subredditId: t.Optional(t.String()),
     })
   })
 

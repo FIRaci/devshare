@@ -120,19 +120,18 @@ export async function fetchLinkPreview(url: string) {
   let result: any = { url, platform: platform?.id || "website", title: url };
 
   if (platform?.id === 'tiktok') {
-    const oembed = await fetchOEmbed(url, `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`);
-    if (oembed) {
-      result = {
-        url, platform: 'tiktok',
-        title: decodeHtmlEntities(oembed.title || 'TikTok Video'),
-        description: decodeHtmlEntities(oembed.author_name ? `Video by ${oembed.author_name}` : 'Watch video on TikTok'),
-        image: oembed.thumbnail_url,
-        siteName: 'TikTok',
-        embedHtml: oembed.html
-      };
-    } else {
-      result = { url, platform: 'tiktok', title: 'TikTok Video', description: 'Watch video on TikTok', siteName: 'TikTok' };
-    }
+    const [oembed, og] = await Promise.all([
+      fetchOEmbed(url, `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`),
+      scrapeOG(url)
+    ]);
+    result = {
+      url, platform: 'tiktok',
+      title: decodeHtmlEntities(oembed?.title || og?.title || 'TikTok Video'),
+      description: decodeHtmlEntities(oembed?.author_name ? `Video by ${oembed.author_name}` : (og?.description || 'Watch video on TikTok')),
+      image: oembed?.thumbnail_url || og?.image,
+      siteName: 'TikTok',
+      ...(oembed?.html ? { embedHtml: oembed.html } : {})
+    };
     setCached(url, result);
     return result;
   }
@@ -151,37 +150,47 @@ export async function fetchLinkPreview(url: string) {
   }
 
   if (platform?.id === 'twitter') {
-    const oembed = await fetchOEmbed(url, `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}`);
-    if (oembed) {
-      const hasIframe = oembed.html?.startsWith('<iframe') && !oembed.html?.includes('<script');
-      result = {
-        url, platform: 'twitter',
-        title: decodeHtmlEntities(oembed.title || oembed.author_name || 'X / Twitter'),
-        description: decodeHtmlEntities(oembed.author_name ? `Tweet by ${oembed.author_name}` : undefined),
-        image: oembed.thumbnail_url,
-        siteName: 'X / Twitter',
-        ...(hasIframe ? { embedHtml: oembed.html } : {})
-      };
-    } else {
-      result = fallbackPathParse(url, 'twitter', 'X / Twitter');
-    }
+    const [oembed, og] = await Promise.all([
+      fetchOEmbed(url, `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}`),
+      scrapeOG(url)
+    ]);
+    result = {
+      url, platform: 'twitter',
+      title: decodeHtmlEntities(oembed?.title || oembed?.author_name || og?.title || 'X / Twitter'),
+      description: decodeHtmlEntities(oembed?.author_name ? `Tweet by ${oembed.author_name}` : (og?.description || undefined)),
+      image: oembed?.thumbnail_url || og?.image,
+      siteName: 'X / Twitter',
+      ...(oembed?.html ? { embedHtml: oembed.html } : {})
+    };
+    if (!oembed) result = fallbackPathParse(url, 'twitter', 'X / Twitter');
     setCached(url, result);
     return result;
   }
 
-  if (platform?.id === 'facebook' || platform?.id === 'instagram') {
+  if (platform?.id === 'instagram') {
+    const [oembed, og] = await Promise.all([
+      fetchOEmbed(url, `https://www.instagram.com/oembed?url=${encodeURIComponent(url)}`),
+      scrapeOG(url)
+    ]);
+    result = {
+      url, platform: 'instagram',
+      title: decodeHtmlEntities(oembed?.title || og?.title || 'Instagram Post'),
+      description: decodeHtmlEntities(oembed?.author_name ? `Photo by ${oembed.author_name}` : (og?.description || 'View on Instagram')),
+      image: oembed?.thumbnail_url || og?.image,
+      siteName: 'Instagram',
+      ...(oembed?.html?.startsWith('<iframe') ? { embedHtml: oembed.html } : {})
+    };
+    if (!oembed && !og) result = fallbackPathParse(url, 'instagram', 'Instagram');
+    setCached(url, result);
+    return result;
+  }
+
+  if (platform?.id === 'facebook') {
     const og = await scrapeOG(url);
     if (og && (og.title || og.description || og.image)) {
-      result = {
-        url, platform: platform.id,
-        title: og.title || `${platform.id === 'facebook' ? 'Facebook' : 'Instagram'} Link`,
-        description: og.description,
-        image: og.image,
-        videoUrl: og.video,
-        siteName: platform.id === 'facebook' ? 'Facebook' : 'Instagram'
-      };
+      result = { url, platform: 'facebook', title: og.title || 'Facebook Link', description: og.description, image: og.image, siteName: 'Facebook' };
     } else {
-      result = fallbackPathParse(url, platform.id, platform.id === 'facebook' ? 'Facebook' : 'Instagram');
+      result = fallbackPathParse(url, 'facebook', 'Facebook');
     }
     setCached(url, result);
     return result;
@@ -203,7 +212,7 @@ export async function fetchLinkPreview(url: string) {
         if (oembedData.description) result.description = decodeHtmlEntities(oembedData.description);
         if (oembedData.thumbnail_url) result.image = decodeHtmlEntities(oembedData.thumbnail_url);
         if (oembedData.author_name) result.authorName = decodeHtmlEntities(oembedData.author_name);
-        if (oembedData.html?.startsWith('<iframe') && !oembedData.html?.includes('<script')) {
+        if (oembedData.html) {
           result.embedHtml = oembedData.html;
         }
       }

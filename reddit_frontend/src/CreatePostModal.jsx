@@ -123,18 +123,15 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     setSubmitting(true)
     const tId = toast.loading(isEdit ? 'Saving...' : 'Posting...')
     try {
-      const payload = isEdit
-        ? {
-            title: newPost.title,
-            content: newPost.content,
-            ...(attachmentsTouched ? { attachments } : {})
-          }
-        : {
-            title: newPost.title,
-            content: newPost.content,
-            subredditId: newPost.subredditId,
-            attachments: attachments.length ? attachments : undefined
-          }
+      const payload = {
+        title: newPost.title,
+        content: newPost.content,
+        subredditId: newPost.subredditId,
+        ...(isEdit
+          ? { ...(attachmentsTouched ? { attachments } : {}) }
+          : { attachments: attachments.length ? attachments : undefined }
+        )
+      }
 
       const res = await fetch(`${API}/posts${isEdit ? `/${initialPost.id}` : ''}`, {
         method: isEdit ? 'PATCH' : 'POST',
@@ -185,7 +182,6 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
             value={newPost.subredditId}
             onChange={e => setNewPost(p => ({ ...p, subredditId: e.target.value }))}
             required
-            disabled={isEdit}
           >
             <option value="">Choose a community *</option>
             {[...subreddits].sort((a, b) => (joinedSubs.has(b.name) ? 1 : 0) - (joinedSubs.has(a.name) ? 1 : 0))

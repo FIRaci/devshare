@@ -25,13 +25,18 @@ const platformMeta = {
   youtube:  { icon: Play,          label: 'YouTube',     color: '#FF0000' },
 }
 
-function EmbedIframe({ html, title }) {
-  const src = extractIframeSrc(html)
-  if (!src) return null
-
+function SafeEmbed({ html, title }) {
+  const iframeSrc = extractIframeSrc(html)
+  if (iframeSrc) {
+    return (
+      <div className="embed-iframe-wrap">
+        <iframe src={iframeSrc} title={title || 'Embed'} className="embed-iframe" sandbox="allow-scripts allow-presentation" loading="lazy" allowFullScreen />
+      </div>
+    )
+  }
   return (
     <div className="embed-iframe-wrap">
-      <iframe src={src} title={title || 'Embed'} className="embed-iframe" sandbox="allow-scripts allow-presentation" loading="lazy" allowFullScreen />
+      <iframe srcDoc={html} title={title || 'Embed'} className="embed-iframe" sandbox="allow-scripts allow-presentation" loading="lazy" style={{ minHeight: 200 }} />
     </div>
   )
 }
@@ -131,24 +136,25 @@ export default function MediaRenderer({ post, isFeed = false }) {
         }
 
         if (preview?.embedHtml) {
-          return <EmbedIframe key={i} html={preview.embedHtml} title={preview?.title} />
+          return <SafeEmbed key={i} html={preview.embedHtml} title={preview?.title} />
         }
 
-        if (platform === 'instagram' && (preview?.videoUrl || preview?.image)) {
+        const platformInline = platform && platformMeta[platform]
+        if (platformInline && (preview?.image || preview?.videoUrl)) {
           return (
-            <div key={i} className="ig-embed-wrap" onClick={e => e.stopPropagation()}>
-              <a href={att.url} target="_blank" rel="noreferrer" className="ig-embed-badge">
-                <InstagramIcon size={14} /> Instagram
+            <div key={i} className="platform-embed-wrap" onClick={e => e.stopPropagation()}>
+              <a href={att.url} target="_blank" rel="noreferrer" className="platform-embed-badge" style={{ color: platformInline.color }}>
+                <platformInline.icon size={14} /> {platformInline.label}
               </a>
               {preview.videoUrl
-                ? <video src={preview.videoUrl} controls className="ig-embed-vid" />
-                : <img src={preview.image} alt="" className="ig-embed-img" loading="lazy" />
+                ? <video src={preview.videoUrl} controls className="platform-embed-vid" />
+                : <img src={preview.image} alt="" className="platform-embed-img" loading="lazy" />
               }
             </div>
           )
         }
 
-        const meta = platformMeta[platform] || null
+        const meta = platformInline
         const hostname = (() => { try { return new URL(att.url).hostname.replace('www.', '') } catch { return att.url } })()
 
         return (
