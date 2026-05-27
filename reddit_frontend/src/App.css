@@ -589,6 +589,29 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 }
 .yt-embed { width: 100%; height: 100%; border: none; }
 
+/* Instagram inline embed */
+.ig-embed-wrap {
+  position: relative; margin-top: 12px;
+  width: 100%; border-radius: 12px; overflow: hidden;
+  background: var(--bg);
+}
+.ig-embed-img {
+  width: 100%; display: block; max-height: 80vh; object-fit: contain;
+  background: var(--bg);
+}
+.ig-embed-vid {
+  width: 100%; display: block; max-height: 80vh; border-radius: 12px;
+}
+.ig-embed-badge {
+  position: absolute; top: 10px; left: 10px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 20px;
+  background: rgba(0,0,0,.65); backdrop-filter: blur(6px);
+  color: #fff; font-size: 11px; font-weight: 600; text-decoration: none;
+  letter-spacing: .3px;
+}
+.ig-embed-badge:hover { background: rgba(0,0,0,.8); }
+
 /* Generic embed iframe (TikTok, oEmbed, etc.) */
 .embed-iframe-wrap {
   position: relative; margin-top: 12px;

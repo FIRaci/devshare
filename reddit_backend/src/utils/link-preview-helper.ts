@@ -66,7 +66,7 @@ async function fetchOEmbed(url: string, apiUrl: string): Promise<any | null> {
 
 async function scrapeOG(url: string): Promise<{
   title?: string; description?: string; image?: string; siteName?: string;
-  oembedEndpoint?: string;
+  video?: string; oembedEndpoint?: string;
 } | null> {
   try {
     const res = await fetch(url, {
@@ -95,11 +95,12 @@ async function scrapeOG(url: string): Promise<{
     const description = getMeta("og:description") || getMeta("twitter:description") || getMeta("description");
     const image = getMeta("og:image") || getMeta("twitter:image");
     const siteName = getMeta("og:site_name") || getMeta("al:android:app_name") || "";
+    const video = getMeta("og:video:secure_url") || getMeta("og:video") || getMeta("og:video:url");
 
     const oembedMatch = html.match(/<link[^>]+type=["']application\/json\+oembed["'][^>]+href=["']([^"']+)["']/i);
     const oembedEndpoint = oembedMatch ? decodeHtmlEntities(oembedMatch[1]) : null;
 
-    return { title, description, image, siteName, oembedEndpoint };
+    return { title, description, image, siteName, video, oembedEndpoint };
   } catch {
     return null;
   }
@@ -176,6 +177,7 @@ export async function fetchLinkPreview(url: string) {
         title: og.title || `${platform.id === 'facebook' ? 'Facebook' : 'Instagram'} Link`,
         description: og.description,
         image: og.image,
+        videoUrl: og.video,
         siteName: platform.id === 'facebook' ? 'Facebook' : 'Instagram'
       };
     } else {

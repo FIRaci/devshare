@@ -134,6 +134,20 @@ export default function MediaRenderer({ post, isFeed = false }) {
           return <EmbedIframe key={i} html={preview.embedHtml} title={preview?.title} />
         }
 
+        if (platform === 'instagram' && (preview?.videoUrl || preview?.image)) {
+          return (
+            <div key={i} className="ig-embed-wrap" onClick={e => e.stopPropagation()}>
+              <a href={att.url} target="_blank" rel="noreferrer" className="ig-embed-badge">
+                <InstagramIcon size={14} /> Instagram
+              </a>
+              {preview.videoUrl
+                ? <video src={preview.videoUrl} controls className="ig-embed-vid" />
+                : <img src={preview.image} alt="" className="ig-embed-img" loading="lazy" />
+              }
+            </div>
+          )
+        }
+
         const meta = platformMeta[platform] || null
         const hostname = (() => { try { return new URL(att.url).hostname.replace('www.', '') } catch { return att.url } })()
 
