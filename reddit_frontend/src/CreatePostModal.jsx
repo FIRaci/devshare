@@ -3,8 +3,11 @@ import { motion } from 'framer-motion'
 import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MarkdownRenderer from './MarkdownRenderer'
+import { getToken } from './api'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const bearer = () => getToken() ? { Authorization: `Bearer ${getToken()}` } : {}
+const bearerJson = () => getToken() ? { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
 
 // Markdown toolbar helper
 function insertAtCursor(textarea, before, after = '', defaultText = '') {
@@ -34,7 +37,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     const fd = new FormData(); fd.append('file', file)
     const tId = toast.loading('Uploading...')
     try {
-      const r = await fetch(`${API}/upload`, { method: 'POST', body: fd })
+      const r = await fetch(`${API}/upload`, { method: 'POST', headers: bearer(), body: fd })
       const d = await r.json()
       if (!r.ok) throw new Error()
       toast.success('Uploaded!', { id: tId })
@@ -135,7 +138,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
 
       const res = await fetch(`${API}/posts${isEdit ? `/${initialPost.id}` : ''}`, {
         method: isEdit ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+        headers: bearerJson(),
         body: JSON.stringify(payload)
       })
       const d = await res.json()

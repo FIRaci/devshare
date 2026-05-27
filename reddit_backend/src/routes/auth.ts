@@ -1,16 +1,14 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-// Trigger TS refresh
 
 export const authRoutes = new Elysia({ prefix: "/auth" })
-  // POST /auth/register
-  .post("/register", async ({ body, set }) => {
+  .post("/register", async ({ body, set, jwt }) => {
     const existing = await db.user.findFirst({
       where: { OR: [{ username: body.username }, { email: body.email }] }
     });
     if (existing) {
       set.status = 400;
-      return { error: "Username or email already taken" };
+      return { error: "Account with that username or email already exists" };
     }
     try {
       const hashedPassword = await Bun.password.hash(body.password);
@@ -22,7 +20,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         },
         select: { id: true, username: true, email: true, bio: true, avatarColor: true, avatarUrl: true, bannerUrl: true, role: true, karma: true, createdAt: true }
       });
-      return { user, message: "Account created successfully" };
+      const token = await jwt.sign({ id: user.id, role: user.role });
+      return { user, token, message: "Account created successfully" };
     } catch (e) {
       console.error(e);
       set.status = 500;
@@ -36,8 +35,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     })
   })
 
-  // POST /auth/login
-  .post("/login", async ({ body, set }) => {
+  .post("/login", async ({ body, set, jwt }) => {
     const user = await db.user.findFirst({
       where: { OR: [{ username: body.identifier }, { email: body.identifier }] },
       include: { subscriptions: true }
@@ -51,7 +49,9 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       set.status = 401;
       return { error: "Invalid credentials" };
     }
+    const token = await jwt.sign({ id: user.id, role: user.role });
     return {
+      token,
       user: { id: user.id, username: user.username, email: user.email, bio: user.bio, avatarColor: user.avatarColor, avatarUrl: user.avatarUrl, bannerUrl: user.bannerUrl, role: user.role, karma: user.karma, createdAt: user.createdAt, subscriptions: user.subscriptions },
       message: "Login successful"
     };
@@ -62,10 +62,9 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     })
   })
 
-  // GET /auth/me/:username - get profile
   .get("/me/:username", async ({ params: { username }, set }) => {
     const user = await db.user.findFirst({
-      where: { username: { equals: username, mode: 'insensitive' } },
+      where: { username: { equals: username, mode: "insensitive" } },
       select: {
         id: true, username: true, email: true, bio: true, avatarColor: true, avatarUrl: true, bannerUrl: true, role: true,
         karma: true, createdAt: true, subscriptions: true,
@@ -84,17 +83,16 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     return user;
   })
 
-  // PATCH /auth/me/:username - update profile
-  .patch("/me/:username", async ({ params: { username }, body, headers, set }) => {
-    const userId = headers["x-user-id"];
-    const target = await db.user.findFirst({ where: { username: { equals: username, mode: 'insensitive' } } });
+  .patch("/me/:username", async ({ params: { username }, body, userId, set }) => {
+    if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
+    const target = await db.user.findFirst({ where: { username: { equals: username, mode: "insensitive" } } });
     if (!target) { set.status = 404; return { error: "User not found" }; }
-    if (!userId || target.id !== userId) {
+    if (target.id !== userId) {
       set.status = 403; return { error: "Forbidden" };
     }
     try {
       if (body.newUsername && body.newUsername !== username) {
-        const existing = await db.user.findFirst({ where: { username: { equals: body.newUsername, mode: 'insensitive' } } });
+        const existing = await db.user.findFirst({ where: { username: { equals: body.newUsername, mode: "insensitive" } } });
         if (existing) { set.status = 400; return { error: "Username already taken" }; }
       }
 

@@ -26,16 +26,8 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     });
   })
 
-  // POST create a comment
-  .post("/", async ({ body, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .post("/", async ({ body, userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      set.status = 401;
-      return { error: "User not found" };
-    }
-
     const post = await db.post.findUnique({ where: { id: body.postId } });
     if (!post) {
       set.status = 400;
@@ -46,7 +38,7 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
       const comment = await db.comment.create({
         data: {
           content: body.content,
-          authorId: user.id,
+          authorId: userId,
           postId: body.postId,
           parentId: body.parentId ?? null
         },
@@ -56,27 +48,26 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
         }
       });
 
-      // Notification logic
       if (body.parentId) {
         const parentComment = await db.comment.findUnique({ where: { id: body.parentId } });
-        if (parentComment && parentComment.authorId !== user.id) {
+        if (parentComment && parentComment.authorId !== userId) {
           await db.notification.create({
             data: {
               type: "REPLY_TO_COMMENT",
               userId: parentComment.authorId,
-              actorId: user.id,
+              actorId: userId,
               postId: body.postId,
               commentId: comment.id
             }
           });
         }
       } else {
-        if (post.authorId !== user.id) {
+        if (post.authorId !== userId) {
           await db.notification.create({
             data: {
               type: "COMMENT_ON_POST",
               userId: post.authorId,
-              actorId: user.id,
+              actorId: userId,
               postId: post.id,
               commentId: comment.id
             }
@@ -98,32 +89,27 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     })
   })
 
-  // POST vote on a comment
-  .post("/:id/vote", async ({ params: { id }, body, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .post("/:id/vote", async ({ params: { id }, body, userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      set.status = 401;
-      return { error: "User not found" };
-    }
 
     try {
-      const existing = await db.vote.findUnique({
-        where: { userId_commentId: { userId: user.id, commentId: id } }
-      });
+      await db.$transaction(async (tx) => {
+        const existing = await tx.vote.findUnique({
+          where: { userId_commentId: { userId, commentId: id } }
+        });
 
-      if (existing && existing.type === body.type) {
-        await db.vote.delete({ where: { userId_commentId: { userId: user.id, commentId: id } } });
-        return { action: "removed" };
-      }
+        if (existing && existing.type === body.type) {
+          await tx.vote.delete({ where: { userId_commentId: { userId, commentId: id } } });
+          return;
+        }
 
-      const vote = await db.vote.upsert({
-        where: { userId_commentId: { userId: user.id, commentId: id } },
-        update: { type: body.type },
-        create: { type: body.type, userId: user.id, commentId: id }
+        await tx.vote.upsert({
+          where: { userId_commentId: { userId, commentId: id } },
+          update: { type: body.type },
+          create: { type: body.type, userId, commentId: id }
+        });
       });
-      return vote;
+      return { action: "voted" };
     } catch (e) {
       set.status = 400;
       return { error: "Could not vote" };
@@ -134,19 +120,16 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     })
   })
 
-  // DELETE a comment (Admin, Author, or Moderator)
-  .delete("/:id", async ({ params: { id }, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .delete("/:id", async ({ params: { id }, userId, userRole, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-    const user = await db.user.findUnique({ where: { id: userId } });
     const comment = await db.comment.findUnique({
       where: { id },
       include: { post: { include: { subreddit: { include: { moderators: { select: { id: true } } } } } } }
     });
-    if (!comment || !user) { set.status = 404; return { error: "Not found" }; }
+    if (!comment) { set.status = 404; return { error: "Not found" }; }
 
-    const isMod = comment.post.subreddit.moderators.some(m => m.id === user.id);
-    if (comment.authorId !== user.id && user.role !== "ADMIN" && !isMod) {
+    const isMod = comment.post.subreddit.moderators.some(m => m.id === userId);
+    if (comment.authorId !== userId && userRole !== "ADMIN" && !isMod) {
       set.status = 403; return { error: "Forbidden" };
     }
 
@@ -158,9 +141,7 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     }
   })
 
-  // PATCH edit a comment (Author only)
-  .patch("/:id", async ({ params: { id }, body, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .patch("/:id", async ({ params: { id }, body, userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
     const comment = await db.comment.findUnique({ where: { id } });
     if (!comment) { set.status = 404; return { error: "Not found" }; }

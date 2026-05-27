@@ -8,9 +8,13 @@ import ProfilePage from './ProfilePage'
 import MediaRenderer from './MediaRenderer'
 import MarkdownRenderer from './MarkdownRenderer'
 import CreatePostModal from './CreatePostModal'
+import UserAvatar from './UserAvatar'
+import { getToken } from './api'
 import './App.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const bearer = () => getToken() ? { Authorization: `Bearer ${getToken()}` } : {}
+const bearerJson = () => getToken() ? { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
 const timeAgo = (d) => { const diff=Date.now()-new Date(d).getTime(),m=Math.floor(diff/60000); if(m<1)return 'just now'; if(m<60)return `${m}m`; const h=Math.floor(m/60); if(h<24)return `${h}h`; return `${Math.floor(h/24)}d` }
 const applyVote = (votes, type, uid) => { if(!uid)return votes; const ex=votes.find(v=>v.userId===uid); if(ex?.type===type) return votes.filter(v=>v.userId!==uid); return [...votes.filter(v=>v.userId!==uid),{type,userId:uid}] }
 const getScore = (votes=[]) => votes.reduce((a,v)=>a+(v.type==='UP'?1:-1),0)
@@ -54,7 +58,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
   const handleVote = async (type) => {
     if (!user) { onAuthRequired?.(); return }
     const prev=localVotes; setLocalVotes(applyVote(localVotes,type,user.id))
-    try { const res=await fetch(`${API}/comments/${comment.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed') }
+    try { const res=await fetch(`${API}/comments/${comment.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed') }
     catch { setLocalVotes(prev) }
   }
 
@@ -66,7 +70,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
   const submitReply = async () => {
     if(!replyText.trim())return; setSubmitting(true)
     try {
-      const res=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({content:replyText,postId:comment.postId,parentId:comment.id})})
+      const res=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({content:replyText,postId:comment.postId,parentId:comment.id})})
       if(res.ok){toast.success('Reply posted!');setReplyText('');setShowReply(false);onReply()}
     } catch { toast.error('Failed') } finally { setSubmitting(false) }
   }
@@ -80,7 +84,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
         <button className={`c-vote down ${my==='DOWN'?'active-down':''}`} onClick={()=>handleVote('DOWN')}><ArrowBigDown size={13} fill={my==='DOWN'?'currentColor':'none'} strokeWidth={my==='DOWN'?2:1.5}/></button>
       </div>
       <div className="comment-body">
-        <div className="comment-meta"><span className="c-author" style={{display:'inline-flex',alignItems:'center',gap:4}}><span style={{width:16,height:16,borderRadius:'50%',background:comment.author?.avatarUrl?'transparent':(comment.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{comment.author?.avatarUrl?<img src={comment.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:comment.author?.username?.[0]?.toUpperCase()}</span>u/{comment.author?.username}</span><span className="c-time">{timeAgo(comment.createdAt)}</span></div>
+        <div className="comment-meta"><span className="c-author" style={{display:'inline-flex',alignItems:'center',gap:4}}><UserAvatar user={comment.author} size={16} />u/{comment.author?.username}</span><span className="c-time">{timeAgo(comment.createdAt)}</span></div>
         <p className="c-content">{comment.content}</p>
         <div className="comment-actions">
           <button className="reply-btn" onClick={handleReplyClick}><MessageSquare size={11}/> Reply</button>
@@ -126,7 +130,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
   }
   const handleVote=async(type)=>{
     const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type,user?.id)}))
-    try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
+    try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
   const handleSave = async (e) => {
@@ -136,7 +140,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
     const isSaved = post.bookmarks?.some(b => b.userId === user.id)
     setPost(p => ({ ...p, bookmarks: isSaved ? p.bookmarks.filter(b => b.userId !== user.id) : [...(p.bookmarks||[]), { userId: user.id }] }))
     try {
-      const res = await fetch(`${API}/posts/${post.id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id } })
+      const res = await fetch(`${API}/posts/${post.id}/save`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...bearer() } })
       if (!res.ok) throw new Error()
       const data = await res.json()
       if (data.saved) { toast.success('Saved!'); invalidateCache() }
@@ -150,7 +154,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
     <motion.div className="post-card" initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} whileHover={{y:-1}} layout>
       <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
       <div className="post-body" onClick={onClick}>
-        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?'transparent':(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{post.author?.avatarUrl?<img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
+        <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><UserAvatar user={post.author} size={16} />u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
         <h3 className="post-title">{post.title}</h3>
         {post.content&&<p className="post-excerpt">{post.content}</p>}
         <MediaRenderer post={post} isFeed={true} />
@@ -194,7 +198,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
   }, [fetch2])
   const handleVote=async(type)=>{
     const prev=post.votes; setPost(p=>({...p,votes:applyVote(p.votes,type,user?.id)}))
-    try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
+    try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
   const handleCommentFocus = () => {
@@ -203,7 +207,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
   const submitComment=async()=>{
     if (!user) { onAuthRequired?.(); return }
     if(!commentText.trim())return; setSubmitting(true)
-    try{const r=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({content:commentText,postId:post.id})});if(r.ok){toast.success('Commented!');setCommentText('');fetch2();setPost(p=>({...p,_count:{...p._count,comments:(p._count?.comments??0)+1}}))}}
+    try{const r=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({content:commentText,postId:post.id})});if(r.ok){toast.success('Commented!');setCommentText('');fetch2();setPost(p=>({...p,_count:{...p._count,comments:(p._count?.comments??0)+1}}))}}
     catch{toast.error('Failed')}finally{setSubmitting(false)}
   }
 
@@ -213,7 +217,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
       <div className="post-card detail-card">
         <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
         <div className="post-body">
-          <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><span style={{width:16,height:16,borderRadius:'50%',background:post.author?.avatarUrl?'transparent':(post.author?.avatarColor??'var(--primary)'),display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0,overflow:'hidden'}}>{post.author?.avatarUrl?<img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:post.author?.username?.[0]?.toUpperCase()}</span>u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
+          <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><UserAvatar user={post.author} size={16} />u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
           <h1 className="post-title" style={{fontSize:24,margin:'0 0 16px 0',color:'var(--text)',lineHeight:1.3}}>{post.title}</h1>
           {post.content && <div style={{marginBottom:16}}><MarkdownRenderer content={post.content} /></div>}
           
@@ -226,7 +230,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
           )}
           <div className="post-actions">
           <button className="action-btn" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`${window.location.origin}#/post/${post.id}`);toast.success('Link copied!')}}><Share2 size={13}/> Share</button>
-            <button className={`action-btn ${post.bookmarks?.some(b=>b.userId===user?.id)?'saved':''}`} onClick={async(e)=>{e.stopPropagation();if(!user){onAuthRequired?.();return}const prev=post.bookmarks;const isSaved=post.bookmarks?.some(b=>b.userId===user.id);setPost(p=>({...p,bookmarks:isSaved?p.bookmarks.filter(b=>b.userId!==user.id):[...(p.bookmarks||[]),{userId:user.id}]}));try{const res=await fetch(`${API}/posts/${post.id}/save`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id}});if(!res.ok)throw new Error();const data=await res.json();if(data.saved)toast.success('Saved!');else toast('Removed');const cached=sessionStorage.getItem('ds:posts');if(cached){const posts=JSON.parse(cached);const idx=posts.findIndex(p=>p.id===post.id);if(idx!==-1)posts[idx]={...posts[idx],bookmarks:post.bookmarks};sessionStorage.setItem('ds:posts',JSON.stringify(posts))}}catch{setPost(p=>({...p,bookmarks:prev}));toast.error('Failed to save')}}}><Bookmark size={13} fill={post.bookmarks?.some(b=>b.userId===user?.id)?'currentColor':'none'}/> {post.bookmarks?.some(b=>b.userId===user?.id)?'Saved':'Save'}</button>
+            <button className={`action-btn ${post.bookmarks?.some(b=>b.userId===user?.id)?'saved':''}`} onClick={async(e)=>{e.stopPropagation();if(!user){onAuthRequired?.();return}const prev=post.bookmarks;const isSaved=post.bookmarks?.some(b=>b.userId===user.id);setPost(p=>({...p,bookmarks:isSaved?p.bookmarks.filter(b=>b.userId!==user.id):[...(p.bookmarks||[]),{userId:user.id}]}));try{const res=await fetch(`${API}/posts/${post.id}/save`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()}});if(!res.ok)throw new Error();const data=await res.json();if(data.saved)toast.success('Saved!');else toast('Removed');const cached=sessionStorage.getItem('ds:posts');if(cached){const posts=JSON.parse(cached);const idx=posts.findIndex(p=>p.id===post.id);if(idx!==-1)posts[idx]={...posts[idx],bookmarks:post.bookmarks};sessionStorage.setItem('ds:posts',JSON.stringify(posts))}}catch{setPost(p=>({...p,bookmarks:prev}));toast.error('Failed to save')}}}><Bookmark size={13} fill={post.bookmarks?.some(b=>b.userId===user?.id)?'currentColor':'none'}/> {post.bookmarks?.some(b=>b.userId===user?.id)?'Saved':'Save'}</button>
             <button className="action-btn" onClick={e=>{e.stopPropagation(); if(!user){onAuthRequired?.();return} onAction('REPORT', post)}} style={{color:'var(--red)'}}>Report</button>
             {(user?.role === 'ADMIN' || user?.username === post.author?.username) && (
               <>
@@ -306,7 +310,7 @@ export default function App() {
   const fetchNotifs = useCallback(async () => {
     if (!user) { setNotifications([]); return; }
     try {
-      const res = await fetch(`${API}/notifications`, { headers: { 'x-user-id': user.id } })
+      const res = await fetch(`${API}/notifications`, { headers: { ...bearer() } })
       if (res.ok) setNotifications(await res.json())
     } catch {
       // Ignored
@@ -381,7 +385,7 @@ export default function App() {
   const submitSub=async(e)=>{
     e.preventDefault(); if(submittingSub) return; setSubmittingSub(true); const tId = toast.loading('Creating...')
     try {
-      const res=await fetch(`${API}/subreddits`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user?.id},body:JSON.stringify({name:newSub.name,description:newSub.description})})
+      const res=await fetch(`${API}/subreddits`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({name:newSub.name,description:newSub.description})})
       const d=await res.json(); if(!res.ok){ toast.error(d.error??'Failed', {id: tId}); return }
       toast.success(`d/${newSub.name} created!`, {id: tId}); setShowCreateSub(false); setNewSub({name:'',description:''})
       joinedSubs.add(newSub.name); setJoinedSubs(new Set(joinedSubs))
@@ -407,7 +411,7 @@ export default function App() {
     updateUser({ subscriptions: newSubs });
 
     try {
-      const res = await fetch(`${API}/subreddits/${n}/join`, { method: 'POST', headers: { 'x-user-id': user.id } });
+      const res = await fetch(`${API}/subreddits/${n}/join`, { method: 'POST', headers: { ...bearer() } });
       if (!res.ok) throw new Error();
       toast(nx.has(n) ? `Joined d/${n}!` : `Left d/${n}`);
       fetchAll();
@@ -487,7 +491,7 @@ export default function App() {
                   <div className="notif-head">
                     <h4>Notifications</h4>
                     {notifications.some(n=>!n.isRead) && <button className="mark-read-btn" onClick={async()=>{
-                      await fetch(`${API}/notifications/readAll`, {method:'POST', headers:{'x-user-id':user.id}});
+                      await fetch(`${API}/notifications/readAll`, {method:'POST', headers:{...bearer()}});
                       fetchNotifs();
                     }}>Mark all read</button>}
                   </div>
@@ -712,7 +716,7 @@ export default function App() {
                         <button className="btn-outline" onClick={()=>setShowSubSettings(false)}>Cancel</button>
                         <button className="btn-post" onClick={async()=>{
                           const tid=toast.loading('Saving...');
-                          try{const r=await fetch(`${API}/subreddits/${selectedSub}`,{method:'PATCH',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({description:subDesc})});if(r.ok){toast.success('Saved!',{id:tid});setShowSubSettings(false);fetchAll()}else throw Error()}catch{toast.error('Failed',{id:tid})}
+                          try{const r=await fetch(`${API}/subreddits/${selectedSub}`,{method:'PATCH',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({description:subDesc})});if(r.ok){toast.success('Saved!',{id:tid});setShowSubSettings(false);fetchAll()}else throw Error()}catch{toast.error('Failed',{id:tid})}
                         }}>Save</button>
                       </div>
                     </div>
@@ -722,7 +726,7 @@ export default function App() {
                       <h4 style={{margin:'0 0 12px',fontSize:14}}>Members ({members.length})</h4>
                       {members.length===0?<p style={{color:'var(--text-2)',fontSize:13}}>No members yet.</p>:
                         members.map(m=><div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
-                          <div className="user-avatar" style={{width:28,height:28,borderRadius:'50%',background:m.avatarUrl?'transparent':(m.avatarColor??'var(--primary)'),overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'white',fontWeight:700,flexShrink:0}}>{m.avatarUrl?<img src={m.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:m.username?.[0]?.toUpperCase()}</div>
+                          <UserAvatar user={m} size={28} />
                           <div style={{flex:1}}><span style={{fontSize:13}}>u/{m.username}</span> <span style={{fontSize:11,color:'var(--text-2)',marginLeft:4}}>({m.role})</span></div>
                           <span style={{fontSize:11,color:'var(--text-3)'}}>{m.karma} karma</span>
                         </div>)
@@ -733,17 +737,17 @@ export default function App() {
                     <div>
                       <h4 style={{margin:'0 0 12px',fontSize:14}}>Moderators</h4>
                       {members.filter(m=>m.role==='OWNER'||m.role==='MODERATOR').map(m=><div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
-                        <div className="user-avatar" style={{width:28,height:28,borderRadius:'50%',background:m.avatarUrl?'transparent':(m.avatarColor??'var(--primary)'),overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'white',fontWeight:700,flexShrink:0}}>{m.avatarUrl?<img src={m.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:m.username?.[0]?.toUpperCase()}</div>
+                        <UserAvatar user={m} size={28} />
                         <div style={{flex:1}}><span style={{fontSize:13}}>u/{m.username}</span> <span style={{fontSize:11,color:'var(--text-2)',marginLeft:4}}>{m.role==='OWNER'?<><Crown size={11} style={{color:'#f59e0b',display:'inline'}}/> Owner</>:'Moderator'}</span></div>
                         {m.role==='MODERATOR' && (user?.role==='ADMIN'||subreddits.find(s=>s.name===selectedSub)?.creator?.id===user?.id) && (
-                          <button className="btn-outline" style={{padding:'3px 8px',fontSize:11,color:'var(--red)'}} onClick={async()=>{const tid=toast.loading('Removing...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators/${m.id}`,{method:'DELETE',headers:{'x-user-id':user.id}});if(r.ok){toast.success('Removed',{id:tid});fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else throw Error()}catch{toast.error('Failed',{id:tid})}}}>Remove</button>
+                          <button className="btn-outline" style={{padding:'3px 8px',fontSize:11,color:'var(--red)'}} onClick={async()=>{const tid=toast.loading('Removing...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators/${m.id}`,{method:'DELETE',headers:{...bearer()}});if(r.ok){toast.success('Removed',{id:tid});fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else throw Error()}catch{toast.error('Failed',{id:tid})}}}>Remove</button>
                         )}
                       </div>)}
                       {user?.role==='ADMIN'||subreddits.find(s=>s.name===selectedSub)?.creator?.id===user?.id?<div style={{marginTop:16}}>
                         <p style={{fontSize:12,color:'var(--text-2)',marginBottom:8}}>Add a moderator by user ID:</p>
                         <div style={{display:'flex',gap:8}}>
-                          <input ref={modAddRef} placeholder="User ID..." style={{flex:1}} onKeyDown={async(e)=>{if(e.key!=='Enter')return;const inp=e.target;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}/>
-                          <button className="btn-post" style={{padding:'6px 12px',fontSize:12}} onClick={async()=>{const inp=modAddRef.current;if(!inp)return;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json','x-user-id':user.id},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}>Add</button>
+                          <input ref={modAddRef} placeholder="User ID..." style={{flex:1}} onKeyDown={async(e)=>{if(e.key!=='Enter')return;const inp=e.target;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}/>
+                          <button className="btn-post" style={{padding:'6px 12px',fontSize:12}} onClick={async()=>{const inp=modAddRef.current;if(!inp)return;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}>Add</button>
                         </div>
                       </div>:null}
                     </div>
@@ -787,31 +791,31 @@ export default function App() {
                       try {
                         if (type === 'REPORT') {
                           if(!actionText.trim()) return toast.error('Reason required', { id: tid });
-                          await fetch(`${API}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ type: 'POST', targetId: post.id, reason: actionText }) });
+                          await fetch(`${API}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ type: 'POST', targetId: post.id, reason: actionText }) });
                           toast.success('Report sent!', { id: tid });
                         } else if (type === 'DELETE') {
-                          await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
+                          await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
                           toast.success('Post deleted', { id: tid });
                           setSelectedPost(null);
                           fetchAll(false);
                         } else if (type === 'DELETE_COMMENT') {
-                          await fetch(`${API}/comments/${post.id}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
+                          await fetch(`${API}/comments/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
                           toast.success('Comment deleted', { id: tid });
                           if(selectedPost) setSelectedPost({...selectedPost}); // force reload
                         } else if (type === 'DELETE_SUB') {
-                          await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { 'x-user-id': user.id }});
+                          await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { ...bearer() }});
                           toast.success('Community deleted', { id: tid });
                           navHome();
                           fetchAll(false);
                         } else if (type === 'NOTE') {
                           if(!actionText.trim()) return toast.error('Note required', { id: tid });
-                          await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ communityNote: actionText }) });
+                          await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ communityNote: actionText }) });
                           toast.success('Note added!', { id: tid });
                           if(selectedPost) setSelectedPost({...selectedPost, communityNote: actionText});
                           fetchAll(false);
                         } else if (type === 'EDIT_COMMENT') {
                           if(!actionText.trim()) return toast.error('Content required', { id: tid });
-                          const res = await fetch(`${API}/comments/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-user-id': user.id }, body: JSON.stringify({ content: actionText }) });
+                          const res = await fetch(`${API}/comments/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ content: actionText }) });
                           if(res.ok) {
                             toast.success('Comment updated', { id: tid });
                             if(selectedPost) setSelectedPost({...selectedPost}); // Force reload comments

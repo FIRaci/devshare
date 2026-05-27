@@ -5,3 +5,10 @@ node_modules/
 *.log
 dist/
 *.exe
+*.out
+debug_scripts/
+check_*.ts
+check_*.js
+fetch_*.js
+fix_*.ts
+test_*.js

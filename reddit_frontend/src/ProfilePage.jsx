@@ -8,8 +8,11 @@ import { useAuth } from './AuthContext'
 import toast from 'react-hot-toast'
 import MediaRenderer from './MediaRenderer'
 import MarkdownRenderer from './MarkdownRenderer'
+import { getToken } from './api'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const bearer = () => getToken() ? { Authorization: `Bearer ${getToken()}` } : {}
+const bearerJson = () => getToken() ? { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
 const timeAgo = (d) => {
   const diff = Date.now() - new Date(d).getTime()
   const m = Math.floor(diff / 60000)
@@ -45,7 +48,7 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
     setUploading(true)
     const toastId = toast.loading('Uploading...')
     try {
-      const res = await fetch(`${API}/upload`, { method: 'POST', body: formData })
+      const res = await fetch(`${API}/upload`, { method: 'POST', headers: bearer(), body: formData })
       const data = await res.json()
       if (res.ok && data.url) {
         setEditForm(f => ({ ...f, [field]: data.url }))
@@ -88,7 +91,7 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
     if (!me?.id) return
     setSavedLoading(true)
     try {
-      const res = await fetch(`${API}/posts/saved`, { headers: { 'x-user-id': me.id } })
+      const res = await fetch(`${API}/posts/saved`, { headers: bearer() })
       if (res.ok) setSavedPosts(await res.json())
     } catch {
       // Ignored
@@ -112,7 +115,7 @@ export default function ProfilePage({ username, onBack, onPostClick, onUsernameC
     try {
       const res = await fetch(`${API}/auth/me/${username}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': me?.id || '' },
+        headers: bearerJson(),
         body: JSON.stringify(editForm)
       })
       const data = await res.json()

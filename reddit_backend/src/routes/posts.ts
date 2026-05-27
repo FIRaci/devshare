@@ -33,8 +33,7 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
   })
 
   // GET saved/bookmarked posts for current user (before :id to avoid route conflict)
-  .get("/saved", async ({ headers, set }) => {
-    const userId = headers["x-user-id"];
+  .get("/saved", async ({ userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
     const bookmarks = await db.bookmark.findMany({
       where: { userId },
@@ -97,11 +96,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
   })
 
   // POST create post
-  .post("/", async ({ body, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .post("/", async ({ body, userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) { set.status = 401; return { error: "User not found" }; }
 
     const subreddit = await db.subreddit.findUnique({ where: { id: body.subredditId } });
     if (!subreddit) { set.status = 400; return { error: "Subreddit not found" }; }
@@ -127,13 +123,14 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         data: {
           title: body.title,
           content: body.content,
-          authorId: user.id,
+          authorId: userId,
           subredditId: body.subredditId,
           mediaUrl: body.mediaUrl,
           mediaType: body.mediaType,
           linkPreview: linkPreview ? linkPreview : undefined,
           attachments: attachments ? attachments : undefined,
         } as any,
+
         include: {
           author: { select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true } },
           subreddit: { include: { creator: { select: { id: true, username: true } } } },
@@ -143,16 +140,15 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         }
       });
 
-      // Create notifications for subscribers
       const subscribers = await db.subscription.findMany({
-        where: { subredditId: body.subredditId, userId: { not: user.id } }
+        where: { subredditId: body.subredditId, userId: { not: userId } }
       });
       if (subscribers.length > 0) {
         await db.notification.createMany({
           data: subscribers.map(sub => ({
             type: "POST_IN_SUBREDDIT",
             userId: sub.userId,
-            actorId: user.id,
+            actorId: userId,
             postId: post.id,
             subredditId: body.subredditId
           }))
@@ -179,16 +175,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     })
   })
 
-  // POST vote on a post
-  .post("/:id/vote", async ({ params: { id }, body, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .post("/:id/vote", async ({ params: { id }, body, userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      set.status = 401;
-      return { error: "User not found" };
-    }
-
     const post = await db.post.findUnique({ where: { id } });
     if (!post) {
       set.status = 404;
@@ -196,23 +184,24 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     }
 
     try {
-      const existing = await db.vote.findUnique({
-        where: { userId_postId: { userId: user.id, postId: id } }
-      });
+      await db.$transaction(async (tx) => {
+        const existing = await tx.vote.findUnique({
+          where: { userId_postId: { userId, postId: id } }
+        });
 
-      if (existing && existing.type === body.type) {
-        await db.vote.delete({ where: { userId_postId: { userId: user.id, postId: id } } });
-        invalidateCache('posts:');
-        return { action: "removed" };
-      }
+        if (existing && existing.type === body.type) {
+          await tx.vote.delete({ where: { userId_postId: { userId, postId: id } } });
+          return;
+        }
 
-      const vote = await db.vote.upsert({
-        where: { userId_postId: { userId: user.id, postId: id } },
-        update: { type: body.type },
-        create: { type: body.type, userId: user.id, postId: id }
+        await tx.vote.upsert({
+          where: { userId_postId: { userId, postId: id } },
+          update: { type: body.type },
+          create: { type: body.type, userId, postId: id }
+        });
       });
-      invalidateCache('posts:');
-      return vote;
+      invalidateCache("posts:");
+      return { action: "voted" };
     } catch (e) {
       console.error(e);
       set.status = 400;
@@ -224,11 +213,8 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     })
   })
 
-  // POST toggle save/unbookmark a post
-  .post("/:id/save", async ({ params: { id }, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .post("/:id/save", async ({ params: { id }, userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-
     const post = await db.post.findUnique({ where: { id } });
     if (!post) { set.status = 404; return { error: "Post not found" }; }
 
@@ -241,13 +227,13 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
         await db.bookmark.delete({
           where: { userId_postId: { userId, postId: id } }
         });
-        invalidateCache('posts:');
+        invalidateCache("posts:");
         return { saved: false };
       } else {
         await db.bookmark.create({
           data: { userId, postId: id }
         });
-        invalidateCache('posts:');
+        invalidateCache("posts:");
         return { saved: true };
       }
     } catch (e) {
@@ -257,35 +243,30 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     }
   })
 
-  // DELETE a post (Admin, Author, or Moderator)
-  .delete("/:id", async ({ params: { id }, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .delete("/:id", async ({ params: { id }, userId, userRole, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-    const user = await db.user.findUnique({ where: { id: userId } });
     const post = await db.post.findUnique({
       where: { id },
       include: { subreddit: { include: { moderators: { select: { id: true } } } } }
     });
-    if (!post || !user) { set.status = 404; return { error: "Not found" }; }
+    if (!post) { set.status = 404; return { error: "Not found" }; }
 
-    const isMod = post.subreddit.moderators.some(m => m.id === user.id);
-    if (post.authorId !== user.id && user.role !== "ADMIN" && !isMod) {
+    const isMod = post.subreddit.moderators.some(m => m.id === userId);
+    if (post.authorId !== userId && userRole !== "ADMIN" && !isMod) {
       set.status = 403; return { error: "Forbidden" };
     }
 
     try {
       await db.post.delete({ where: { id } });
-      invalidateCache('posts:');
-      invalidateCache('subs:');
+      invalidateCache("posts:");
+      invalidateCache("subs:");
       return { message: "Deleted" };
     } catch {
       set.status = 500; return { error: "Failed to delete" };
     }
   })
 
-  // PATCH edit a post (Author only)
-  .patch("/:id", async ({ params: { id }, body, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .patch("/:id", async ({ params: { id }, body, userId, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
     const post = await db.post.findUnique({ where: { id } });
     if (!post) { set.status = 404; return { error: "Not found" }; }
@@ -337,12 +318,9 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
     })
   })
 
-  // PATCH add community note (Admin only)
-  .patch("/:id/note", async ({ params: { id }, body, headers, set }) => {
-    const userId = headers["x-user-id"];
+  .patch("/:id/note", async ({ params: { id }, body, userId, userRole, set }) => {
     if (!userId) { set.status = 401; return { error: "Unauthorized" }; }
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user || user.role !== "ADMIN") { set.status = 403; return { error: "Forbidden" }; }
+    if (userRole !== "ADMIN") { set.status = 403; return { error: "Forbidden" }; }
 
     try {
       const post = await db.post.update({

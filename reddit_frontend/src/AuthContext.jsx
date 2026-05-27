@@ -17,6 +17,7 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? 'Login failed')
+    localStorage.setItem('ds_token', data.token)
     localStorage.setItem('ds_user', JSON.stringify(data.user))
     setUser(data.user)
     return data.user
@@ -29,12 +30,14 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? 'Registration failed')
+    localStorage.setItem('ds_token', data.token)
     localStorage.setItem('ds_user', JSON.stringify(data.user))
     setUser(data.user)
     return data.user
   }
 
   const logout = () => {
+    localStorage.removeItem('ds_token')
     localStorage.removeItem('ds_user')
     setUser(null)
   }

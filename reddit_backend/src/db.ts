@@ -24,18 +24,43 @@ export const db =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
 
-// Simple in-memory cache with TTL
+const MAX_CACHE_SIZE = 200;
+const cacheKeys: string[] = [];
+
 const cache = new Map<string, { data: any; expires: number }>();
+
 export function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
-  if (!entry || Date.now() > entry.expires) { cache.delete(key); return null; }
+  if (!entry || Date.now() > entry.expires) {
+    cache.delete(key);
+    const idx = cacheKeys.indexOf(key);
+    if (idx !== -1) cacheKeys.splice(idx, 1);
+    return null;
+  }
   return entry.data as T;
 }
+
 export function setCache(key: string, data: any, ttlMs = 15000) {
+  if (cache.has(key)) {
+    const entry = cache.get(key)!;
+    entry.data = data;
+    entry.expires = Date.now() + ttlMs;
+    return;
+  }
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const oldest = cacheKeys.shift();
+    if (oldest) cache.delete(oldest);
+  }
   cache.set(key, { data, expires: Date.now() + ttlMs });
+  cacheKeys.push(key);
 }
+
 export function invalidateCache(prefix: string) {
   for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) cache.delete(key);
+    if (key.startsWith(prefix)) {
+      cache.delete(key);
+      const idx = cacheKeys.indexOf(key);
+      if (idx !== -1) cacheKeys.splice(idx, 1);
+    }
   }
 }
