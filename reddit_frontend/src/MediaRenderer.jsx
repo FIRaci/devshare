@@ -4,6 +4,7 @@ import Lightbox from './Lightbox'
 import { FileText, Play, MessageCircle, Music } from 'lucide-react'
 
 function extractIframeSrc(html) {
+  if (typeof html !== 'string') return null
   const m = html.match(/<iframe[^>]+src=["']([^"']+)["']/i)
   return m ? m[1] : null
 }
@@ -47,12 +48,14 @@ function getMediaItems(post) {
 }
 
 function formatSize(bytes) {
+  if (typeof bytes !== 'number') return ''
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / 1048576).toFixed(1) + ' MB'
 }
 
 function extractYoutubeId(url) {
+  if (typeof url !== 'string') return null
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-z0-9_-]{11})/i)
   return m ? m[1] : null
 }
