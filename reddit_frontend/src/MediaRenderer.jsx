@@ -1,7 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import Lightbox from './Lightbox'
 import { FileText, Play, MessageCircle, Music } from 'lucide-react'
+
+function extractIframeSrc(html) {
+  const m = html.match(/<iframe[^>]+src=["']([^"']+)["']/i)
+  return m ? m[1] : null
+}
 
 const FacebookIcon = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
@@ -20,25 +25,12 @@ const platformMeta = {
 }
 
 function EmbedIframe({ html, title }) {
-  const ref = useRef(null)
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    if (ref.current) {
-      const doc = ref.current.contentDocument
-      if (doc) {
-        doc.open()
-        doc.write(html)
-        doc.close()
-      }
-      setLoaded(true)
-    }
-  }, [html])
+  const src = extractIframeSrc(html)
+  if (!src) return null
 
   return (
     <div className="embed-iframe-wrap">
-      {!loaded && <div className="embed-loader" />}
-      <iframe ref={ref} title={title || 'Embed'} className="embed-iframe" sandbox="allow-scripts allow-same-origin allow-presentation" style={{ opacity: loaded ? 1 : 0 }} />
+      <iframe src={src} title={title || 'Embed'} className="embed-iframe" sandbox="allow-scripts allow-presentation" loading="lazy" allowFullScreen />
     </div>
   )
 }
