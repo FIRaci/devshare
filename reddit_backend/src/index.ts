@@ -21,6 +21,10 @@ function isAllowedMime(mime: string): boolean {
 }
 
 if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === "production") {
+    console.error("FATAL: JWT_SECRET must be set in production.");
+    process.exit(1);
+  }
   console.warn("WARNING: JWT_SECRET not set. Using insecure fallback.");
 }
 
