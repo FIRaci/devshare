@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
+import { fetchLinkPreview } from "../utils/link-preview-helper";
 
 export const commentRoutes = new Elysia({ prefix: "/comments" })
   // GET comments for a post
@@ -35,12 +36,26 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     }
 
     try {
+      let attachments = body.attachments;
+      if (attachments !== undefined && Array.isArray(attachments)) {
+        attachments = await Promise.all(attachments.map(async (att: any) => {
+          if (att.type === 'LINK' && att.url) {
+            const preview = await fetchLinkPreview(att.url).catch(() => null);
+            return { ...att, linkPreview: preview };
+          }
+          return att;
+        }));
+      }
+
       const comment = await db.comment.create({
         data: {
           content: body.content,
           authorId: userId,
           postId: body.postId,
-          parentId: body.parentId ?? null
+          parentId: body.parentId ?? null,
+          attachments: body.attachments !== undefined ? attachments : undefined,
+          mediaUrl: body.attachments !== undefined ? null : undefined,
+          mediaType: body.attachments !== undefined ? null : undefined,
         },
         include: {
           author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
@@ -85,7 +100,8 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     body: t.Object({
       content: t.String({ minLength: 1 }),
       postId: t.String({ minLength: 1 }),
-      parentId: t.Optional(t.String())
+      parentId: t.Optional(t.String()),
+      attachments: t.Optional(t.Array(t.Any())),
     })
   })
 
@@ -151,9 +167,27 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     }
 
     try {
+      let attachments = body.attachments;
+      if (attachments !== undefined && Array.isArray(attachments)) {
+        attachments = await Promise.all(attachments.map(async (att: any) => {
+          if (att.type === 'LINK' && att.url) {
+            const preview = await fetchLinkPreview(att.url).catch(() => null);
+            return { ...att, linkPreview: preview };
+          }
+          return att;
+        }));
+      }
+
       const updated = await db.comment.update({
         where: { id },
-        data: { content: body.content },
+        data: {
+          content: body.content,
+          ...(body.attachments !== undefined ? {
+            attachments,
+            mediaUrl: null,
+            mediaType: null,
+          } : {}),
+        },
         include: {
           author: { select: { id: true, username: true, avatarColor: true, avatarUrl: true } },
           votes: { select: { type: true, userId: true } }
@@ -165,6 +199,7 @@ export const commentRoutes = new Elysia({ prefix: "/comments" })
     }
   }, {
     body: t.Object({
-      content: t.String({ minLength: 1 })
+      content: t.String({ minLength: 1 }),
+      attachments: t.Optional(t.Array(t.Any())),
     })
   });

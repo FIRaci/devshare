@@ -8,6 +8,7 @@ import ProfilePage from './ProfilePage'
 import MediaRenderer from './MediaRenderer'
 import MarkdownRenderer from './MarkdownRenderer'
 import CreatePostModal from './CreatePostModal'
+import CommentComposer from './CommentComposer'
 import UserAvatar from './UserAvatar'
 import { getToken } from './api'
 import './App.css'
@@ -51,8 +52,6 @@ function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) 
 function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMod }) {
   const { user } = useAuth()
   const [showReply, setShowReply] = useState(false)
-  const [replyText, setReplyText] = useState('')
-  const [submitting, setSubmitting] = useState(false)
   const [localVotes, setLocalVotes] = useState(comment.votes??[])
 
   const handleVote = async (type) => {
@@ -62,17 +61,11 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
     catch { setLocalVotes(prev) }
   }
 
-  const handleReplyClick = () => {
-    if (!user) { onAuthRequired?.(); return }
-    setShowReply(s=>!s)
-  }
-
-  const submitReply = async () => {
-    if(!replyText.trim())return; setSubmitting(true)
-    try {
-      const res=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({content:replyText,postId:comment.postId,parentId:comment.id})})
-      if(res.ok){toast.success('Reply posted!');setReplyText('');setShowReply(false);onReply()}
-    } catch { toast.error('Failed') } finally { setSubmitting(false) }
+  const submitReply = async (content, attachments) => {
+    const payload = { content, postId: comment.postId, parentId: comment.id, attachments: attachments.length ? attachments : undefined }
+    const res=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify(payload)})
+    if(res.ok){toast.success('Reply posted!');setShowReply(false);onReply()}
+    else throw new Error()
   }
 
   const my=myVote(localVotes,user?.id),score=getScore(localVotes)
@@ -85,9 +78,10 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
       </div>
       <div className="comment-body">
         <div className="comment-meta"><span className="c-author" style={{display:'inline-flex',alignItems:'center',gap:4}}><UserAvatar user={comment.author} size={16} />u/{comment.author?.username}</span><span className="c-time">{timeAgo(comment.createdAt)}</span></div>
-        <p className="c-content">{comment.content}</p>
+        <div className="c-content"><MarkdownRenderer content={comment.content} /></div>
+        <MediaRenderer post={comment} />
         <div className="comment-actions">
-          <button className="reply-btn" onClick={handleReplyClick}><MessageSquare size={11}/> Reply</button>
+          <button className="reply-btn" onClick={()=>{if(!user){onAuthRequired?.();return}setShowReply(s=>!s)}}><MessageSquare size={11}/> Reply</button>
           {(user?.role === 'ADMIN' || user?.username === comment.author?.username || isMod) && (
             <>
               {user?.username === comment.author?.username && <button className="reply-btn" onClick={() => onAction?.('EDIT_COMMENT', comment)} style={{color:'var(--text-2)'}}>Edit</button>}
@@ -97,11 +91,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
         </div>
         <AnimatePresence>
           {showReply&&<motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}} className="reply-box">
-            <textarea autoFocus value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Your reply…" rows={3}/>
-            <div className="reply-actions">
-              <button className="btn-cancel" onClick={()=>setShowReply(false)}>Cancel</button>
-              <button className="btn-post" disabled={submitting||!replyText.trim()} onClick={submitReply}><Send size={12}/>{submitting?'…':'Reply'}</button>
-            </div>
+            <CommentComposer onSubmit={submitReply} onCancel={()=>setShowReply(false)} placeholder="Your reply…" submitLabel="Reply" />
           </motion.div>}
         </AnimatePresence>
         {comment.replies?.length>0&&<div className="replies">{comment.replies.map(r=><CommentItem key={r.id} comment={{...r,postId:comment.postId}} depth={depth+1} onReply={onReply} onAuthRequired={onAuthRequired} onAction={onAction}/>)}</div>}
@@ -186,8 +176,6 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
   const [post,setPost]=useState(init)
   const isMod = post?.subreddit?.moderators?.some(m => m.id === user?.id) ?? false
   const [comments,setComments]=useState([])
-  const [commentText,setCommentText]=useState('')
-  const [submitting,setSubmitting]=useState(false)
   const fetch2=useCallback(async()=>{try{const r=await fetch(`${API}/comments/post/${post.id}`);if(r.ok)setComments(await r.json())}catch{/* Ignored */}},[post.id])
   useEffect(() => {
     let active = true
@@ -201,14 +189,12 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
     try{const res=await fetch(`${API}/posts/${post.id}/vote`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({type})}); if(!res.ok) throw new Error('Vote failed')}
     catch{setPost(p=>({...p,votes:prev}));toast.error('Vote failed')}
   }
-  const handleCommentFocus = () => {
+  const submitComment=async(content, attachments)=>{
     if (!user) { onAuthRequired?.(); return }
-  }
-  const submitComment=async()=>{
-    if (!user) { onAuthRequired?.(); return }
-    if(!commentText.trim())return; setSubmitting(true)
-    try{const r=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({content:commentText,postId:post.id})});if(r.ok){toast.success('Commented!');setCommentText('');fetch2();setPost(p=>({...p,_count:{...p._count,comments:(p._count?.comments??0)+1}}))}}
-    catch{toast.error('Failed')}finally{setSubmitting(false)}
+    const payload = { content, postId: post.id, attachments: attachments.length ? attachments : undefined }
+    const r=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify(payload)})
+    if(r.ok){toast.success('Commented!');fetch2();setPost(p=>({...p,_count:{...p._count,comments:(p._count?.comments??0)+1}}))}
+    else throw new Error()
   }
 
   return (
@@ -248,13 +234,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
         <h4 className="comments-heading">{post._count?.comments??0} Comments</h4>
         {!user
           ? <div className="auth-prompt" onClick={onAuthRequired}><LogIn size={16}/> Log in to comment and vote</div>
-          : <div className="comment-compose">
-              <textarea value={commentText} onChange={e=>setCommentText(e.target.value)} onFocus={handleCommentFocus} placeholder="Share your thoughts…" rows={4}/>
-              <div className="compose-actions">
-                <span className="char-count">{commentText.length} chars</span>
-                <button className="btn-post" onClick={submitComment} disabled={submitting||!commentText.trim()}><Send size={13}/>{submitting?'Posting…':'Comment'}</button>
-              </div>
-            </div>
+          : <CommentComposer onSubmit={submitComment} />
         }
         {comments.length===0
           ?<div className="empty-comments"><MessageSquare size={34}/><p>No comments yet.</p></div>
@@ -299,6 +279,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen]=useState(false)
   const [actionModal,setActionModal]=useState(null) // { type: 'REPORT'|'DELETE'|'NOTE', post }
   const [actionText,setActionText]=useState('')
+  const [actionAttachments, setActionAttachments] = useState([])
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [showSubSettings, setShowSubSettings] = useState(false)
@@ -458,8 +439,8 @@ export default function App() {
       return
     }
     setActionModal({ type, post })
-    if (type === 'EDIT_COMMENT') setActionText(post.content || '')
-    else setActionText('')
+    if (type === 'EDIT_COMMENT') { setActionText(post.content || ''); setActionAttachments(post.attachments || []) }
+    else { setActionText(''); setActionAttachments([]) }
   }
 
   return (
@@ -767,67 +748,80 @@ export default function App() {
               <div className="modal-body">
                 {(actionModal.type === 'DELETE' || actionModal.type === 'DELETE_COMMENT') ? (
                   <p>Are you sure you want to permanently delete this? This action cannot be undone.</p>
-                ) : actionModal.type === 'DELETE_SUB' ? (
-                  <p>Are you sure you want to permanently delete d/{actionModal.post.subreddit.name}? This action cannot be undone.</p>
+                ) : actionModal.type === 'EDIT_COMMENT' ? (
+                  <CommentComposer
+                    onSubmit={async (content, attachments) => {
+                      const tid = toast.loading('Saving...');
+                      try {
+                        const payload = { content, ...(attachments.length ? { attachments } : {}) };
+                        const res = await fetch(`${API}/comments/${actionModal.post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify(payload) });
+                        if(res.ok) {
+                          toast.success('Comment updated', { id: tid });
+                          if(selectedPost) setSelectedPost({...selectedPost});
+                          setActionModal(null); setActionText(''); setActionAttachments([]);
+                        } else throw new Error();
+                      } catch { toast.error('Failed to save', { id: tid }); }
+                    }}
+                    onCancel={() => { setActionModal(null); setActionText(''); setActionAttachments([]); }}
+                    initialContent={actionText}
+                    initialAttachments={actionAttachments}
+                    submitLabel="Save"
+                    placeholder="Edit your comment…"
+                  />
                 ) : (
                   <>
                     <textarea 
                       autoFocus
-                      placeholder={actionModal.type === 'REPORT' ? "Reason for reporting..." : actionModal.type.startsWith('EDIT') ? "Content..." : "Enter your community note..."} 
+                      placeholder={actionModal.type === 'REPORT' ? "Reason for reporting..." : "Enter your community note..."} 
                       value={actionText} 
                       onChange={e=>setActionText(e.target.value)} 
                       rows={4} 
                     />
                   </>
                 )}
-                <div className="modal-footer" style={{ marginTop: 16 }}>
-                  <button className="btn-outline" onClick={()=>setActionModal(null)}>Cancel</button>
-                  <button 
-                    className="btn-post" 
-                    style={{ background: (actionModal.type.startsWith('DELETE')) ? 'var(--red)' : 'var(--primary)' }}
-                    onClick={async () => {
-                      const { type, post } = actionModal;
-                      const tid = toast.loading('Processing...');
-                      try {
-                        if (type === 'REPORT') {
-                          if(!actionText.trim()) return toast.error('Reason required', { id: tid });
-                          await fetch(`${API}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ type: 'POST', targetId: post.id, reason: actionText }) });
-                          toast.success('Report sent!', { id: tid });
-                        } else if (type === 'DELETE') {
-                          await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
-                          toast.success('Post deleted', { id: tid });
-                          setSelectedPost(null);
-                          fetchAll(false);
-                        } else if (type === 'DELETE_COMMENT') {
-                          await fetch(`${API}/comments/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
-                          toast.success('Comment deleted', { id: tid });
-                          if(selectedPost) setSelectedPost({...selectedPost}); // force reload
-                        } else if (type === 'DELETE_SUB') {
-                          await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { ...bearer() }});
-                          toast.success('Community deleted', { id: tid });
-                          navHome();
-                          fetchAll(false);
-                        } else if (type === 'NOTE') {
-                          if(!actionText.trim()) return toast.error('Note required', { id: tid });
-                          await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ communityNote: actionText }) });
-                          toast.success('Note added!', { id: tid });
-                          if(selectedPost) setSelectedPost({...selectedPost, communityNote: actionText});
-                          fetchAll(false);
-                        } else if (type === 'EDIT_COMMENT') {
-                          if(!actionText.trim()) return toast.error('Content required', { id: tid });
-                          const res = await fetch(`${API}/comments/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ content: actionText }) });
-                          if(res.ok) {
-                            toast.success('Comment updated', { id: tid });
-                            if(selectedPost) setSelectedPost({...selectedPost}); // Force reload comments
-                          } else throw new Error();
-                        }
-                        setActionModal(null); setActionText('');
-                      } catch { toast.error('Action failed', { id: tid }); }
-                    }}
-                  >
-                    {(actionModal.type.startsWith('DELETE')) ? 'Delete' : 'Submit'}
-                  </button>
-                </div>
+                {actionModal.type !== 'EDIT_COMMENT' && (
+                  <div className="modal-footer" style={{ marginTop: 16 }}>
+                    <button className="btn-outline" onClick={()=>setActionModal(null)}>Cancel</button>
+                    <button 
+                      className="btn-post" 
+                      style={{ background: (actionModal.type.startsWith('DELETE')) ? 'var(--red)' : 'var(--primary)' }}
+                      onClick={async () => {
+                        const { type, post } = actionModal;
+                        const tid = toast.loading('Processing...');
+                        try {
+                          if (type === 'REPORT') {
+                            if(!actionText.trim()) return toast.error('Reason required', { id: tid });
+                            await fetch(`${API}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ type: 'POST', targetId: post.id, reason: actionText }) });
+                            toast.success('Report sent!', { id: tid });
+                          } else if (type === 'DELETE') {
+                            await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
+                            toast.success('Post deleted', { id: tid });
+                            setSelectedPost(null);
+                            fetchAll(false);
+                          } else if (type === 'DELETE_COMMENT') {
+                            await fetch(`${API}/comments/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
+                            toast.success('Comment deleted', { id: tid });
+                            if(selectedPost) setSelectedPost({...selectedPost});
+                          } else if (type === 'DELETE_SUB') {
+                            await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { ...bearer() }});
+                            toast.success('Community deleted', { id: tid });
+                            navHome();
+                            fetchAll(false);
+                          } else if (type === 'NOTE') {
+                            if(!actionText.trim()) return toast.error('Note required', { id: tid });
+                            await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ communityNote: actionText }) });
+                            toast.success('Note added!', { id: tid });
+                            if(selectedPost) setSelectedPost({...selectedPost, communityNote: actionText});
+                            fetchAll(false);
+                          }
+                          setActionModal(null); setActionText('');
+                        } catch { toast.error('Action failed', { id: tid }); }
+                      }}
+                    >
+                      {(actionModal.type.startsWith('DELETE')) ? 'Delete' : 'Submit'}
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

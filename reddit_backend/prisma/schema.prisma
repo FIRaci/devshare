@@ -77,10 +77,13 @@ model Post {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  content     String   // Rich markdown text
+  mediaUrl    String?  // Legacy single media
+  mediaType   String?  // Legacy: "IMAGE", "VIDEO"
+  attachments Json?    // Array of { type: "IMAGE"|"VIDEO"|"FILE"|"LINK", url, name?, size?, linkPreview? }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
