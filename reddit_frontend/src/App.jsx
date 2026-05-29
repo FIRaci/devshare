@@ -65,7 +65,7 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
     const payload = { content, postId: comment.postId, parentId: comment.id, attachments: attachments.length ? attachments : undefined }
     const res=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify(payload)})
     if(res.ok){toast.success('Reply posted!');setShowReply(false);onReply()}
-    else throw new Error()
+    else toast.error('Reply failed')
   }
 
   const my=myVote(localVotes,user?.id),score=getScore(localVotes)
@@ -194,7 +194,7 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
     const payload = { content, postId: post.id, attachments: attachments.length ? attachments : undefined }
     const r=await fetch(`${API}/comments`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify(payload)})
     if(r.ok){toast.success('Commented!');fetch2();setPost(p=>({...p,_count:{...p._count,comments:(p._count?.comments??0)+1}}))}
-    else throw new Error()
+    else toast.error('Comment failed')
   }
 
   return (

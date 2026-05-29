@@ -80,7 +80,11 @@ export default function CommentComposer({ onSubmit, onCancel, placeholder = 'Sha
   const handleSubmit = async () => {
     if (!content.trim()) return
     setSubmitting(true)
-    await onSubmit(content.trim(), attachments)
+    try {
+      await onSubmit(content.trim(), attachments)
+    } catch {
+      toast.error('Failed to submit')
+    }
     setSubmitting(false)
   }
 
@@ -169,7 +173,7 @@ export default function CommentComposer({ onSubmit, onCancel, placeholder = 'Sha
         </button>
         {uploadingIdx >= 0 && <span style={{ color: 'var(--text-2)', fontSize: 11 }}>Uploading...</span>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span className="char-count" style={{ fontSize: 11 }}>{content.length} chars</span>
+          <span className="char-count">{content.length} chars</span>
           {onCancel && <button type="button" className="btn-cancel" onClick={onCancel} style={{ padding: '5px 10px', fontSize: 12 }}>Cancel</button>}
           <button className="btn-post" disabled={isSubmitting || !content.trim()} onClick={handleSubmit} style={{ padding: '5px 12px', fontSize: 12 }}>
             <Send size={12}/>{isSubmitting ? '…' : submitLabel}
