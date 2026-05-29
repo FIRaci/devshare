@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
-import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, RefreshCw, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Settings as SettingsIcon, Shield, Users, Crown } from 'lucide-react'
+import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Settings as SettingsIcon, Shield, Users, Crown, ArrowUpDown } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import AuthPage from './AuthPage'
 import ProfilePage from './ProfilePage'
@@ -273,6 +273,7 @@ export default function App() {
   const [editPost, setEditPost] = useState(null)
   const [showCreateSub,setShowCreateSub]=useState(false)
   const [sortBy,setSortBy]=useState('new')
+  const [sortDesc,setSortDesc]=useState(true)
   const [searchQuery,setSearchQuery]=useState('')
   const [newSub,setNewSub]=useState({name:'',description:''})
   const [leftCollapsed,setLeftCollapsed]=useState(false)
@@ -406,9 +407,11 @@ export default function App() {
   const displayPosts=[...posts]
     .filter(p=>!searchQuery||p.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a,b)=>{
-      if(sortBy==='top')return getScore(b.votes)-getScore(a.votes)
-      if(sortBy==='hot')return(getScore(b.votes)+(b._count?.comments??0)*2)-(getScore(a.votes)+(a._count?.comments??0)*2)
-      return new Date(b.createdAt)-new Date(a.createdAt)
+      let cmp=0
+      if(sortBy==='top')cmp=getScore(b.votes)-getScore(a.votes)
+      else if(sortBy==='hot')cmp=(getScore(b.votes)+(b._count?.comments??0)*2)-(getScore(a.votes)+(a._count?.comments??0)*2)
+      else cmp=new Date(b.createdAt)-new Date(a.createdAt)
+      return sortDesc?cmp:-cmp
     })
 
   const navHome=()=>{setSelectedSub(null);setSelectedPost(null);setProfileUser(null)}
@@ -587,7 +590,7 @@ export default function App() {
                     {[{id:'hot',icon:<Flame size={13}/>,label:'Hot'},{id:'new',icon:<Clock size={13}/>,label:'New'},{id:'top',icon:<Award size={13}/>,label:'Top'}].map(s=>(
                       <button key={s.id} className={`sort-tab ${sortBy===s.id?'active':''}`} onClick={()=>setSortBy(s.id)}>{s.icon}{s.label}</button>
                     ))}
-                    <button className="sort-tab" onClick={fetchAll}><RefreshCw size={13}/></button>
+                    <button className={`sort-tab ${!sortDesc?'active':''}`} onClick={()=>setSortDesc(d=>!d)} title={sortDesc?'Descending':'Ascending'}><ArrowUpDown size={13}/></button>
                   </div>
                 </div>
                 <div className="create-stub" onClick={()=>{ if(!user){setShowAuth(true);return}; setShowCreatePost(true)}}>
