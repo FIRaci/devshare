@@ -4,6 +4,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun install && bunx prisma generate",
     "seed": "bun run src/seed.ts",
     "db:push": "bun prisma db push",
     "db:generate": "bun prisma generate"
@@ -14,6 +16,7 @@
     "@elysiajs/static": "^1.4.10",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "dotenv": "^16.4.5",
     "elysia": "latest",
     "pg": "^8.20.0"
   },
