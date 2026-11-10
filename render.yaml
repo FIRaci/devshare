@@ -7,19 +7,20 @@ databases:
     plan: free
     region: oregon
     postgresMajorVersion: "16"
-    ipAllowList: []
 
 services:
   # 1. Backend Web Service (Bun + Elysia + Prisma)
   - type: web
     name: devshare-backend
-    runtime: bun
+    runtime: node
     plan: free
     region: oregon
     rootDir: reddit_backend
     buildCommand: bun install && bunx prisma generate
     startCommand: bunx prisma db push && bun run src/seed.ts && bun run src/index.ts
     envVars:
+      - key: BUN_VERSION
+        value: latest
       - key: DATABASE_URL
         fromDatabase:
           name: devshare-db
@@ -35,8 +36,6 @@ services:
   - type: web
     name: devshare-frontend
     runtime: static
-    plan: free
-    region: oregon
     rootDir: reddit_frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -47,4 +46,3 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://devshare-backend.onrender.com
-
