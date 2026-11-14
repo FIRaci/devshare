@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Send, X, Paperclip } from 'lucide-react'
+import { Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Send, X, Paperclip, Code2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MarkdownRenderer from './MarkdownRenderer'
+import CodeInsertModal from './code-insert-modal'
 import { getToken } from './api'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -25,6 +26,7 @@ export default function CommentComposer({ onSubmit, onCancel, placeholder = 'Sha
   const [linkInput, setLinkInput] = useState('')
   const [uploadingIdx, setUploadingIdx] = useState(-1)
   const [submitting, setSubmitting] = useState(false)
+  const [showCodeModal, setShowCodeModal] = useState(false)
   const textareaRef = useRef(null)
   const imageRef = useRef(null)
   const videoRef = useRef(null)
@@ -76,6 +78,17 @@ export default function CommentComposer({ onSubmit, onCancel, placeholder = 'Sha
     setTimeout(() => { ta.focus(); ta.setSelectionRange(cursor, cursor) }, 0)
   }
 
+  const handleInsertCodeSnippet = (formattedCode) => {
+    const ta = textareaRef.current
+    if (!ta) {
+      setContent(c => (c || '') + formattedCode)
+      return
+    }
+    const { value, cursor } = insertAtCursor(ta, formattedCode, '', '')
+    setContent(value)
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(cursor, cursor) }, 0)
+  }
+
   const handleSubmit = async () => {
     if (!content.trim()) return
     setSubmitting(true)
@@ -123,7 +136,10 @@ export default function CommentComposer({ onSubmit, onCancel, placeholder = 'Sha
         <div className="md-toolbar comment-md-toolbar">
           <button type="button" className="md-tool" title="Bold" onClick={e => toolbar('**', '**', 'bold text', e)}><Bold size={13}/></button>
           <button type="button" className="md-tool" title="Italic" onClick={e => toolbar('*', '*', 'italic text', e)}><Italic size={13}/></button>
-          <button type="button" className="md-tool" title="Code" onClick={e => toolbar('`', '`', 'code', e)}><Code size={13}/></button>
+          <button type="button" className="md-tool" title="Inline code" onClick={e => toolbar('`', '`', 'code', e)}><Code size={13}/></button>
+          <button type="button" className="md-tool md-tool-code" title="Insert Code / Jupyter" onClick={e => { e.preventDefault(); setShowCodeModal(true) }}>
+            <Code2 size={13} color="var(--primary)"/>
+          </button>
           <div className="md-tool-sep"/>
           <button type="button" className="md-tool" title="Heading" onClick={e => toolbar('## ', '', 'Heading', e)}><Hash size={13}/></button>
           <button type="button" className="md-tool" title="Quote" onClick={e => toolbar('> ', '', 'quote', e)}><Quote size={13}/></button>
@@ -205,6 +221,13 @@ export default function CommentComposer({ onSubmit, onCancel, placeholder = 'Sha
           </button>
         </div>
       </div>
+
+      <CodeInsertModal
+        isOpen={showCodeModal}
+        onClose={() => setShowCodeModal(false)}
+        onInsert={handleInsertCodeSnippet}
+        initialSelectedText={textareaRef.current ? textareaRef.current.value.slice(textareaRef.current.selectionStart, textareaRef.current.selectionEnd) : ''}
+      />
     </div>
   )
 }

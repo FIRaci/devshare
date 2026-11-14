@@ -1,4 +1,5 @@
 import React from 'react'
+import CodeBlockViewer from './code-block-viewer'
 
 // Inline markdown renderer supporting:
 // **bold**, *italic*, `code`, ```code blocks```, # headings, > blockquote,
@@ -99,12 +100,7 @@ export default function MarkdownRenderer({ content, compact = false }) {
   const renderBlock = (block, idx) => {
     // Fenced code block ```lang\n...\n```
     if (block.type === 'code') {
-      return (
-        <div key={idx} className="md-code-block">
-          {block.lang && <div className="md-code-lang">{block.lang}</div>}
-          <pre><code>{block.content}</code></pre>
-        </div>
-      )
+      return <CodeBlockViewer key={idx} content={block.content} lang={block.lang} />
     }
     if (block.type === 'blockquote') {
       return <blockquote key={idx} className="md-blockquote">{block.lines.map((l, i) => <div key={i}>{parseInline(l)}</div>)}</blockquote>

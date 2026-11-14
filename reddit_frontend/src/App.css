@@ -35,8 +35,8 @@
   --surface:      #161B27;
   --surface-2:    #1D2333;
   --text:         #E8ECF4;
-  --text-2:       #6B7280;
-  --text-3:       #4B5563;
+  --text-2:       #9BA3AF;
+  --text-3:       #6B7280;
   --hover:        rgba(116,143,252,.08);
   --border:       #2A3144;
   --shadow:       0 1px 3px rgba(0,0,0,.3),0 4px 10px rgba(0,0,0,.2);
@@ -45,7 +45,7 @@
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;transition:background .3s,color .3s;}
-button{cursor:pointer;border:none;background:none;font-family:inherit;}
+button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit;}
 input,textarea,select{font-family:inherit;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
@@ -379,12 +379,12 @@ input,textarea,select{font-family:inherit;}
 .info-banner{height:48px;background:linear-gradient(135deg,var(--primary),#91A7FF);display:flex;align-items:center;justify-content:center;}
 .info-body{padding:14px;display:flex;flex-direction:column;gap:9px;}
 .info-brand{display:flex;align-items:center;gap:7px;}
-.info-body h4,.card-title{font-size:14px;font-weight:800;}
+.info-body h4,.card-title{font-size:14px;font-weight:800;color:var(--text);}
 .info-body p{font-size:12px;color:var(--text-2);line-height:1.5;}
 .community-row{display:flex;align-items:center;gap:7px;padding:5px 0;}
 .rank{font-size:11px;font-weight:800;color:var(--text-2);width:16px;text-align:center;}
 .sub-row-info{flex:1;display:flex;flex-direction:column;min-width:0;}
-.sub-row-name{font-size:12px;font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sub-row-name{font-size:12px;font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);display:block;}
 .sub-row-name:hover{color:var(--primary);}
 .sub-row-info small{font-size:10px;color:var(--text-2);}
 .join-btn{background:var(--primary);color:white;padding:4px 11px;border-radius:999px;font-size:11px;font-weight:700;transition:background .15s;}
@@ -996,4 +996,407 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   position: absolute; top: calc(100% + 8px); right: 0;
   width: 320px; background: var(--surface); border: 1px solid var(--border);
   border-radius: 14px; box-shadow: var(--shadow-md); z-index: 400; overflow: hidden;
+}
+
+/* ── Enhanced Code Block Viewer ────────────────────────────────────────────── */
+.code-block-container {
+  margin: 14px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #141720;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  transition: border-color .2s;
+}
+.code-block-container:hover {
+  border-color: rgba(92,124,250,.35);
+}
+[data-theme="light"] .code-block-container {
+  background: #181B24;
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.code-block-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.code-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.code-dots .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot-red { background: #FF5F56; }
+.dot-yellow { background: #FFBD2E; }
+.dot-green { background: #27C93F; }
+
+.code-lang-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #E2E8F0;
+  background: rgba(255,255,255,0.07);
+  padding: 2px 8px;
+  border-radius: 5px;
+  border-left: 3px solid var(--primary);
+  font-family: 'Fira Code', 'Consolas', monospace;
+}
+.code-lang-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.code-line-count {
+  font-size: 11px;
+  color: #718096;
+  font-family: monospace;
+}
+
+.code-block-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.code-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #A0AEC0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.code-action-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: #FFF;
+}
+.code-action-btn.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.code-block-body {
+  overflow-x: auto;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #E2E8F0;
+  padding: 12px 0;
+}
+.code-block-body.wrap-lines .code-line-row {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.code-block-body.wrap-lines .code-pre {
+  white-space: pre-wrap;
+}
+
+.code-pre {
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+.code-line-row {
+  display: flex;
+  align-items: flex-start;
+  min-height: 22px;
+  padding: 0 16px 0 0;
+}
+.code-line-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+.code-line-num {
+  width: 44px;
+  text-align: right;
+  padding-right: 14px;
+  color: #4A5568;
+  user-select: none;
+  font-size: 11px;
+  flex-shrink: 0;
+  line-height: 22px;
+}
+.code-line-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre;
+}
+
+/* Syntax Token Colors (Crisp VS Code / One Dark inspired) */
+.hl-keyword  { color: #F7768E; font-weight: 600; }
+.hl-string   { color: #9ECE6A; }
+.hl-comment  { color: #565F89; font-style: italic; }
+.hl-number   { color: #FF9E64; }
+.hl-boolean  { color: #FF9E64; font-weight: 600; }
+.hl-func     { color: #7AA2F7; }
+.hl-type     { color: #2AC3DE; font-weight: 500; }
+.hl-operator { color: #89DDFF; }
+
+/* ── Jupyter Notebook Styles ───────────────────────────────────────────────── */
+.jupyter-notebook {
+  margin: 16px 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.jupyter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.jupyter-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.jupyter-icon { color: #FF6F00; }
+.jupyter-kernel-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255,111,0,0.12);
+  color: #FF6F00;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,111,0,0.25);
+}
+.jupyter-cells-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+.jupyter-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jupyter-input-row, .jupyter-output-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.jupyter-in-gutter, .jupyter-out-gutter {
+  width: 72px;
+  flex-shrink: 0;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+  user-select: none;
+  padding-top: 6px;
+}
+.jupyter-in-gutter { color: #3182CE; }
+.jupyter-out-gutter { color: #DD6B20; }
+
+.jupyter-code-box {
+  flex: 1;
+  position: relative;
+  background: #141720;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 3px solid #3182CE;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.jupyter-cell-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #A0AEC0;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  transition: all .15s;
+  z-index: 2;
+}
+.jupyter-cell-copy:hover {
+  background: rgba(255,255,255,0.18);
+  color: #FFF;
+}
+.jupyter-code-pre {
+  margin: 0;
+  padding: 10px 0;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  color: #E2E8F0;
+}
+.jupyter-code-line {
+  display: flex;
+  align-items: flex-start;
+  padding: 0 14px 0 0;
+}
+.jupyter-line-num {
+  width: 36px;
+  text-align: right;
+  padding-right: 12px;
+  color: #4A5568;
+  user-select: none;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.jupyter-line-content {
+  flex: 1;
+  white-space: pre;
+}
+
+.jupyter-output-box {
+  flex: 1;
+  background: rgba(0,0,0,0.18);
+  border: 1px dashed var(--border);
+  border-left: 3px solid #DD6B20;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.jupyter-output-pre {
+  margin: 0;
+  padding: 10px 14px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre;
+}
+
+/* ── Code Inserter Modal & Toolbar ─────────────────────────────────────────── */
+.md-tool-code {
+  width: auto !important;
+  padding: 0 8px !important;
+  gap: 3px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  background: var(--surface) !important;
+}
+.md-tool-code:hover {
+  border-color: var(--primary) !important;
+  background: var(--primary-soft) !important;
+}
+
+.modal-code-inserter {
+  max-width: 620px !important;
+}
+.code-lang-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 7px;
+  margin-top: 4px;
+}
+.code-lang-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: left;
+}
+.code-lang-pill:hover {
+  background: var(--hover);
+  border-color: var(--primary);
+}
+.code-lang-pill.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}
+.code-lang-pill .lang-icon { font-size: 14px; }
+.code-lang-pill .lang-label { flex: 1; }
+.code-lang-pill .check-icon { color: var(--primary); }
+
+.code-inserter-textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text);
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.code-inserter-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.btn-link-sample {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.btn-link-sample:hover { opacity: 0.8; }
+.ipynb-tip-box {
+  background: rgba(255,111,0,0.08);
+  border: 1px solid rgba(255,111,0,0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.ipynb-tip-box code {
+  background: rgba(0,0,0,0.1);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* ── Developer Link Cards ──────────────────────────────────────────────────── */
+.link-github {
+  border-left: 3px solid #24292e;
+}
+[data-theme="dark"] .link-github {
+  border-left-color: #5C7CFA;
+}
+.link-codepen {
+  border-left: 3px solid #47cf73;
+}
+.link-stackblitz {
+  border-left: 3px solid #1389FD;
+}
+.link-figma {
+  border-left: 3px solid #F24E1E;
 }

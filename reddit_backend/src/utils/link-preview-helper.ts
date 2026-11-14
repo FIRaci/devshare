@@ -26,6 +26,11 @@ export function detectPlatform(url: string) {
   if (u.includes('facebook.com') || u.includes('fb.com')) return { id: 'facebook' };
   if (u.includes('instagram.com') || u.includes('instagr.am')) return { id: 'instagram' };
   if (u.includes('tiktok.com')) return { id: 'tiktok' };
+  if (u.includes('github.com')) return { id: 'github' };
+  if (u.includes('codepen.io')) return { id: 'codepen' };
+  if (u.includes('stackblitz.com')) return { id: 'stackblitz' };
+  if (u.includes('codesandbox.io')) return { id: 'codesandbox' };
+  if (u.includes('figma.com')) return { id: 'figma' };
   return null;
 }
 
@@ -192,6 +197,41 @@ export async function fetchLinkPreview(url: string) {
     } else {
       result = fallbackPathParse(url, 'facebook', 'Facebook');
     }
+    setCached(url, result);
+    return result;
+  }
+
+  if (platform?.id === 'codepen') {
+    const oembed = await fetchOEmbed(url, `https://codepen.io/api/oembed?url=${encodeURIComponent(url)}&format=json`);
+    if (oembed) {
+      result = {
+        url, platform: 'codepen',
+        title: decodeHtmlEntities(oembed.title || 'CodePen Snippet'),
+        description: decodeHtmlEntities(oembed.author_name ? `Pen by ${oembed.author_name}` : 'Interactive Web Snippet on CodePen'),
+        image: oembed.thumbnail_url,
+        siteName: 'CodePen',
+        ...(oembed.html ? { embedHtml: oembed.html } : {})
+      };
+      setCached(url, result);
+      return result;
+    }
+  }
+
+  if (platform?.id === 'github') {
+    const og = await scrapeOG(url);
+    let repoTitle = 'GitHub';
+    try {
+      const parsed = new URL(url);
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      if (parts.length >= 2) repoTitle = `${parts[0]}/${parts[1]}`;
+    } catch {}
+    result = {
+      url, platform: 'github',
+      title: og?.title || repoTitle,
+      description: og?.description || `GitHub Repository: ${repoTitle}`,
+      image: og?.image || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+      siteName: 'GitHub'
+    };
     setCached(url, result);
     return result;
   }

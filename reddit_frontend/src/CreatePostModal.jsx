@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Code2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MarkdownRenderer from './MarkdownRenderer'
+import CodeInsertModal from './code-insert-modal'
 import { getToken } from './api'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -28,6 +29,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
   const [submitting, setSubmitting] = useState(false)
   const [uploadingIdx, setUploadingIdx] = useState(-1)
   const [preview, setPreview] = useState(false)
+  const [showCodeModal, setShowCodeModal] = useState(false)
   const textareaRef = useRef(null)
   const imageRef = useRef(null)
   const videoRef = useRef(null)
@@ -113,6 +115,17 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     const ta = textareaRef.current
     if (!ta) return
     const { value, cursor } = insertAtCursor(ta, before, after, defaultText)
+    setNewPost(p => ({ ...p, content: value }))
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(cursor, cursor) }, 0)
+  }
+
+  const handleInsertCodeSnippet = (formattedCode) => {
+    const ta = textareaRef.current
+    if (!ta) {
+      setNewPost(p => ({ ...p, content: (p.content || '') + formattedCode }))
+      return
+    }
+    const { value, cursor } = insertAtCursor(ta, formattedCode, '', '')
     setNewPost(p => ({ ...p, content: value }))
     setTimeout(() => { ta.focus(); ta.setSelectionRange(cursor, cursor) }, 0)
   }
@@ -204,7 +217,10 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
             <button type="button" className="md-tool" title="Bold (**text**)" onClick={e => toolbar('**', '**', 'bold text', e)}><Bold size={14}/></button>
             <button type="button" className="md-tool" title="Italic (*text*)" onClick={e => toolbar('*', '*', 'italic text', e)}><Italic size={14}/></button>
             <button type="button" className="md-tool" title="Inline code (`code`)" onClick={e => toolbar('`', '`', 'code', e)}><Code size={14}/></button>
-            <button type="button" className="md-tool" title="Code block" onClick={e => toolbar('```\n', '\n```', 'code here', e)}><span style={{fontSize:11, fontFamily:'monospace'}}>{'<>'}</span></button>
+            <button type="button" className="md-tool md-tool-code" title="Insert Code Block / Jupyter Notebook" onClick={e => { e.preventDefault(); setShowCodeModal(true) }}>
+              <Code2 size={14} color="var(--primary)"/>
+              <span style={{ fontSize: 11, fontWeight: 700, marginLeft: 3 }}>Code</span>
+            </button>
             <div className="md-tool-sep"/>
             <button type="button" className="md-tool" title="Heading" onClick={e => toolbar('## ', '', 'Heading', e)}><Hash size={14}/></button>
             <button type="button" className="md-tool" title="Quote" onClick={e => toolbar('> ', '', 'quote', e)}><Quote size={14}/></button>
@@ -286,6 +302,13 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
           </div>
         </form>
       </motion.div>
+
+      <CodeInsertModal
+        isOpen={showCodeModal}
+        onClose={() => setShowCodeModal(false)}
+        onInsert={handleInsertCodeSnippet}
+        initialSelectedText={textareaRef.current ? textareaRef.current.value.slice(textareaRef.current.selectionStart, textareaRef.current.selectionEnd) : ''}
+      />
     </div>
   )
 }
