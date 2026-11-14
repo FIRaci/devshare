@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import HighlightedLine, { normalizeLanguage } from './code-syntax-highlighter'
 import JupyterNotebookRenderer from './jupyter-notebook-renderer'
 import { Copy, Check, WrapText, Code2 } from 'lucide-react'
@@ -20,25 +20,27 @@ const LANG_COLORS = {
   ipynb:      '#FF6F00'
 }
 
-export default function CodeBlockViewer({ content, lang = '' }) {
+const CodeBlockViewer = React.memo(function CodeBlockViewer({ content, lang = '' }) {
   const [copied, setCopied] = useState(false)
   const [wrap, setWrap] = useState(false)
 
-  const normLang = normalizeLanguage(lang)
+  const normLang = useMemo(() => normalizeLanguage(lang), [lang])
 
   // Route to Jupyter renderer if language is ipynb/notebook or content has jupyter markers
-  const isJupyter = normLang === 'ipynb' || (
-    content && (
-      (content.includes('"cells"') && content.trim().startsWith('{')) ||
-      /^#?\s*In\s*\[\d+\]/im.test(content)
+  const isJupyter = useMemo(() => {
+    return normLang === 'ipynb' || (
+      content && (
+        (content.includes('"cells"') && content.trim().startsWith('{')) ||
+        /^#?\s*In\s*\[\d+\]/im.test(content)
+      )
     )
-  )
+  }, [normLang, content])
 
   if (isJupyter) {
     return <JupyterNotebookRenderer content={content} />
   }
 
-  const lines = (content || '').split('\n')
+  const lines = useMemo(() => (content || '').split('\n'), [content])
   const langColor = LANG_COLORS[normLang] || 'var(--primary)'
   const displayLang = (lang || 'code').toUpperCase()
 
@@ -115,4 +117,6 @@ export default function CodeBlockViewer({ content, lang = '' }) {
       </div>
     </div>
   )
-}
+})
+
+export default CodeBlockViewer

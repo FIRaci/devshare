@@ -74,6 +74,10 @@ model Post {
   comments Comment[]
   votes    Vote[]
   bookmarks Bookmark[]
+
+  @@index([subredditId, createdAt])
+  @@index([createdAt])
+  @@index([authorId])
 }
 
 model Comment {
@@ -96,6 +100,10 @@ model Comment {
   replies  Comment[] @relation("CommentToComment")
 
   votes Vote[]
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@index([authorId])
 }
 
 enum VoteType {
@@ -164,6 +172,8 @@ model Notification {
   postId      String?
   commentId   String?
   subredditId String?
+
+  @@index([userId, isRead, createdAt])
 }
 
 model Bookmark {
@@ -174,4 +184,5 @@ model Bookmark {
   createdAt DateTime  @default(now())
 
   @@id([userId, postId])
+  @@index([userId, createdAt])
 }

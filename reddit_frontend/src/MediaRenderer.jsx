@@ -85,7 +85,7 @@ function extractYoutubeId(url) {
   return m ? m[1] : null
 }
 
-export default function MediaRenderer({ post, isFeed = false }) {
+const MediaRenderer = React.memo(function MediaRenderer({ post, isFeed = false }) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
@@ -239,4 +239,6 @@ export default function MediaRenderer({ post, isFeed = false }) {
       </AnimatePresence>
     </>
   )
-}
+})
+
+export default MediaRenderer

@@ -1,7 +1,7 @@
 const hits = new Map<string, { count: number; resetAt: number }>();
 
 const WINDOW_MS = 60_000;
-const MAX_HITS = 60;
+const MAX_HITS = 300;
 
 export function rateLimit(key: string, maxHits = MAX_HITS, windowMs = WINDOW_MS): boolean {
   const now = Date.now();

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import HighlightedLine from './code-syntax-highlighter'
 import { Check, Copy, Terminal, Play, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -102,9 +102,9 @@ function parseNotebookContent(rawContent) {
   }))
 }
 
-export default function JupyterNotebookRenderer({ content }) {
+const JupyterNotebookRenderer = React.memo(function JupyterNotebookRenderer({ content }) {
   const [copiedIdx, setCopiedIdx] = useState(null)
-  const cells = parseNotebookContent(content)
+  const cells = useMemo(() => parseNotebookContent(content), [content])
 
   const copyCellCode = (text, idx) => {
     navigator.clipboard.writeText(text)
@@ -179,4 +179,6 @@ export default function JupyterNotebookRenderer({ content }) {
       </div>
     </div>
   )
-}
+})
+
+export default JupyterNotebookRenderer

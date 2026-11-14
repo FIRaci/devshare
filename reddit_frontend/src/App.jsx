@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
 import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Settings as SettingsIcon, Shield, Users, Crown, ArrowUpDown } from 'lucide-react'
@@ -22,7 +22,7 @@ const getScore = (votes=[]) => votes.reduce((a,v)=>a+(v.type==='UP'?1:-1),0)
 const myVote = (votes, uid) => votes?.find(v=>v.userId===uid)?.type??null
 
 // ── VoteButtons (filled icons when active) ───────────────────────────────────
-function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) {
+const VoteButtons = React.memo(function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) {
   const { user } = useAuth()
   const score = getScore(votes)
   const my = myVote(votes, user?.id)
@@ -46,10 +46,10 @@ function VoteButtons({ votes, onVote, onAuthRequired, size=22, vertical=true }) 
       </motion.button>
     </Wrap>
   )
-}
+})
 
 // ── CommentItem ──────────────────────────────────────────────────────────────
-function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMod }) {
+const CommentItem = React.memo(function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMod }) {
   const { user } = useAuth()
   const [showReply, setShowReply] = useState(false)
   const [localVotes, setLocalVotes] = useState(comment.votes??[])
@@ -98,17 +98,13 @@ function CommentItem({ comment, depth=1, onReply, onAuthRequired, onAction, isMo
       </div>
     </div>
   )
-}
+})
 
 // ── PostCard ─────────────────────────────────────────────────────────────────
-function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick }) {
+const PostCard = React.memo(function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick }) {
   const { user } = useAuth()
-  const [post,setPost]=useState(init)
-  const [prevInit, setPrevInit] = useState(init)
-  if (init !== prevInit) {
-    setPost(init)
-    setPrevInit(init)
-  }
+  const [post, setPost] = useState(init)
+  useEffect(() => { setPost(init) }, [init])
   const invalidateCache = () => {
     const cached = sessionStorage.getItem('ds:posts')
     if (cached) {
@@ -141,7 +137,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
   const isSaved = post.bookmarks?.some(b => b.userId === user?.id)
 
   return (
-    <motion.div className="post-card" initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} whileHover={{y:-1}} layout>
+    <motion.div className="post-card" initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} whileHover={{y:-1}}>
       <VoteButtons votes={post.votes} onVote={handleVote} onAuthRequired={onAuthRequired}/>
       <div className="post-body" onClick={onClick}>
         <div className="post-meta"><span className="sub-badge">d/{post.subreddit?.name}</span><span className="meta-dot">·</span><span className="meta-user" style={{display:'inline-flex',alignItems:'center',gap:4}} onClick={e=>{e.stopPropagation(); onUserClick?.(post.author?.username)}}><UserAvatar user={post.author} size={16} />u/{post.author?.username}</span><span className="meta-dot">·</span><span className="meta-text">{timeAgo(post.createdAt)}</span></div>
@@ -168,7 +164,7 @@ function PostCard({ post:init, onClick, onAuthRequired, onAction, onUserClick })
       </div>
     </motion.div>
   )
-}
+})
 
 // ── PostDetail ────────────────────────────────────────────────────────────────
 function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }) {
@@ -404,15 +400,23 @@ export default function App() {
     }
   }
 
-  const displayPosts=[...posts]
-    .filter(p=>!searchQuery||p.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a,b)=>{
-      let cmp=0
-      if(sortBy==='top')cmp=getScore(b.votes)-getScore(a.votes)
-      else if(sortBy==='hot')cmp=(getScore(b.votes)+(b._count?.comments??0)*2)-(getScore(a.votes)+(a._count?.comments??0)*2)
-      else cmp=new Date(b.createdAt)-new Date(a.createdAt)
-      return sortDesc?cmp:-cmp
-    })
+  const deferredSearch = useDeferredValue(searchQuery)
+  const [visibleCount, setVisibleCount] = useState(20)
+
+  useEffect(() => { setVisibleCount(20) }, [selectedSub, sortBy, sortDesc, deferredSearch])
+
+  const displayPosts = useMemo(() => {
+    const query = (deferredSearch || '').trim().toLowerCase()
+    return [...posts]
+      .filter(p => !query || p.title?.toLowerCase().includes(query))
+      .sort((a,b) => {
+        let cmp = 0
+        if (sortBy === 'top') cmp = getScore(b.votes) - getScore(a.votes)
+        else if (sortBy === 'hot') cmp = (getScore(b.votes) + (b._count?.comments ?? 0) * 2) - (getScore(a.votes) + (a._count?.comments ?? 0) * 2)
+        else cmp = new Date(b.createdAt) - new Date(a.createdAt)
+        return sortDesc ? cmp : -cmp
+      })
+  }, [posts, deferredSearch, sortBy, sortDesc])
 
   const navHome=()=>{setSelectedSub(null);setSelectedPost(null);setProfileUser(null)}
 
@@ -602,7 +606,18 @@ export default function App() {
                   ?<div className="skeleton-list">{[1,2,3].map(n=><div key={n} className="skeleton"/>)}</div>
                   :displayPosts.length===0
                     ?<div className="empty-feed"><LayoutGrid size={40}/><p>No posts found</p><button className="btn-post" onClick={()=>{if(!user){setShowAuth(true);return};setShowCreatePost(true)}}>Create first post</button></div>
-                    :displayPosts.map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/> )
+                    :(
+                      <>
+                        {displayPosts.slice(0, visibleCount).map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/> )}
+                        {displayPosts.length > visibleCount && (
+                          <div style={{display:'flex',justifyContent:'center',padding:'18px 0'}}>
+                            <button className="btn-outline" onClick={()=>setVisibleCount(c=>c+20)}>
+                              Load more posts ({displayPosts.length - visibleCount} remaining)
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )
                 }
               </motion.div>
             )}

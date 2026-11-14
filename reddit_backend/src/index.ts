@@ -25,10 +25,14 @@ const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID();
 
 const app = new Elysia()
   .onRequest(({ request, set }) => {
-    const key = request.headers.get("x-forwarded-for") || "global";
+    const url = new URL(request.url);
+    if (url.pathname === "/" || url.pathname.startsWith("/uploads/")) return;
+
+    const rawIp = request.headers.get("x-forwarded-for") || request.headers.get("cf-connecting-ip") || "127.0.0.1";
+    const key = rawIp.split(",")[0].trim() || "global";
     if (!rateLimit(key)) {
       set.status = 429;
-      return { error: "Too many requests" };
+      return { error: "Too many requests. Please wait a moment." };
     }
   })
   .use(cors())
@@ -71,6 +75,7 @@ const app = new Elysia()
   .get("/uploads/:filename", ({ params: { filename }, set }) => {
     const safe = filename.replace(/\.\.\//g, "").replace(/[<>"|?*]/g, "");
     set.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; media-src 'self'";
+    set.headers["Cache-Control"] = "public, max-age=31536000, immutable";
     return Bun.file(`public/uploads/${safe}`);
   })
   .use(authRoutes)

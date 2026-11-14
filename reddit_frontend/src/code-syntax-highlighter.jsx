@@ -156,10 +156,27 @@ export function tokenizeLine(line, lang = 'javascript') {
   return tokens
 }
 
-// Render a highlighted line with line tokens
-export default function HighlightedLine({ line, lang = 'javascript' }) {
-  if (!line) return <span>{'\n'}</span>
+// Fast LRU memoization cache for tokenized lines
+const tokenCache = new Map()
+const MAX_TOKEN_CACHE_SIZE = 1200
+
+export function tokenizeLineCached(line, lang = 'javascript') {
+  const key = `${lang}:${line}`
+  const cached = tokenCache.get(key)
+  if (cached) return cached
   const tokens = tokenizeLine(line, lang)
+  if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
+    const firstKey = tokenCache.keys().next().value
+    if (firstKey) tokenCache.delete(firstKey)
+  }
+  tokenCache.set(key, tokens)
+  return tokens
+}
+
+// Render a highlighted line with line tokens (memoized for performance)
+const HighlightedLine = React.memo(function HighlightedLine({ line, lang = 'javascript' }) {
+  if (!line) return <span>{'\n'}</span>
+  const tokens = tokenizeLineCached(line, lang)
 
   return (
     <>
@@ -176,4 +193,6 @@ export default function HighlightedLine({ line, lang = 'javascript' }) {
       })}
     </>
   )
-}
+})
+
+export default HighlightedLine

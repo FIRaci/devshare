@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import CodeBlockViewer from './code-block-viewer'
 
 // Inline markdown renderer supporting:
 // **bold**, *italic*, `code`, ```code blocks```, # headings, > blockquote,
 // - lists, [link](url), ![img](url), ~~strikethrough~~, ==highlight==
-export default function MarkdownRenderer({ content, compact = false }) {
+const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, compact = false }) {
   if (!content) return null
 
   // Parse inline elements within a line
@@ -123,67 +123,72 @@ export default function MarkdownRenderer({ content, compact = false }) {
     return null
   }
 
-  // Parse content into blocks
-  const lines = content.split('\n')
-  const blocks = []
-  let i = 0
-  while (i < lines.length) {
-    const line = lines[i]
-    // Fenced code block
-    if (line.trimStart().startsWith('```')) {
-      const lang = line.replace(/^```/, '').trim()
-      const codeLines = []
-      i++
-      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
-        codeLines.push(lines[i]); i++
+  // Parse content into blocks (memoized)
+  const renderedContent = useMemo(() => {
+    const lines = content.split('\n')
+    const blocks = []
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+      // Fenced code block
+      if (line.trimStart().startsWith('```')) {
+        const lang = line.replace(/^```/, '').trim()
+        const codeLines = []
+        i++
+        while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
+          codeLines.push(lines[i]); i++
+        }
+        blocks.push({ type: 'code', lang, content: codeLines.join('\n') })
+        i++; continue
       }
-      blocks.push({ type: 'code', lang, content: codeLines.join('\n') })
-      i++; continue
-    }
-    // Heading
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)/)
-    if (headingMatch) {
-      blocks.push({ type: 'heading', level: headingMatch[1].length, text: headingMatch[2] })
-      i++; continue
-    }
-    // HR
-    if (/^[-*_]{3,}$/.test(line.trim())) {
-      blocks.push({ type: 'hr' })
-      i++; continue
-    }
-    // Blockquote
-    if (line.startsWith('>')) {
-      const bqLines = []
-      while (i < lines.length && lines[i].startsWith('>')) {
-        bqLines.push(lines[i].replace(/^>\s?/, '')); i++
+      // Heading
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)/)
+      if (headingMatch) {
+        blocks.push({ type: 'heading', level: headingMatch[1].length, text: headingMatch[2] })
+        i++; continue
       }
-      blocks.push({ type: 'blockquote', lines: bqLines }); continue
-    }
-    // Unordered list
-    if (/^[-*+]\s/.test(line)) {
-      const items = []
-      while (i < lines.length && /^[-*+]\s/.test(lines[i])) {
-        items.push(lines[i].replace(/^[-*+]\s/, '')); i++
+      // HR
+      if (/^[-*_]{3,}$/.test(line.trim())) {
+        blocks.push({ type: 'hr' })
+        i++; continue
       }
-      blocks.push({ type: 'ul', items }); continue
-    }
-    // Ordered list
-    if (/^\d+\.\s/.test(line)) {
-      const items = []
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
-        items.push(lines[i].replace(/^\d+\.\s/, '')); i++
+      // Blockquote
+      if (line.startsWith('>')) {
+        const bqLines = []
+        while (i < lines.length && lines[i].startsWith('>')) {
+          bqLines.push(lines[i].replace(/^>\s?/, '')); i++
+        }
+        blocks.push({ type: 'blockquote', lines: bqLines }); continue
       }
-      blocks.push({ type: 'ol', items }); continue
+      // Unordered list
+      if (/^[-*+]\s/.test(line)) {
+        const items = []
+        while (i < lines.length && /^[-*+]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^[-*+]\s/, '')); i++
+        }
+        blocks.push({ type: 'ul', items }); continue
+      }
+      // Ordered list
+      if (/^\d+\.\s/.test(line)) {
+        const items = []
+        while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\d+\.\s/, '')); i++
+        }
+        blocks.push({ type: 'ol', items }); continue
+      }
+      // Empty line → skip
+      if (!line.trim()) { i++; continue }
+      // Paragraph
+      const paraLines = []
+      while (i < lines.length && lines[i].trim() && !lines[i].startsWith('#') && !lines[i].startsWith('>') && !/^[-*+]\s/.test(lines[i]) && !/^\d+\.\s/.test(lines[i]) && !lines[i].trimStart().startsWith('```') && !/^[-*_]{3,}$/.test(lines[i].trim())) {
+        paraLines.push(lines[i]); i++
+      }
+      if (paraLines.length) blocks.push({ type: 'paragraph', text: paraLines.join(' ') })
     }
-    // Empty line → skip
-    if (!line.trim()) { i++; continue }
-    // Paragraph
-    const paraLines = []
-    while (i < lines.length && lines[i].trim() && !lines[i].startsWith('#') && !lines[i].startsWith('>') && !/^[-*+]\s/.test(lines[i]) && !/^\d+\.\s/.test(lines[i]) && !lines[i].trimStart().startsWith('```') && !/^[-*_]{3,}$/.test(lines[i].trim())) {
-      paraLines.push(lines[i]); i++
-    }
-    if (paraLines.length) blocks.push({ type: 'paragraph', text: paraLines.join(' ') })
-  }
+    return blocks.map(renderBlock)
+  }, [content, compact])
 
-  return <div className="md-body">{blocks.map(renderBlock)}</div>
-}
+  return <div className="md-body">{renderedContent}</div>
+})
+
+export default MarkdownRenderer
