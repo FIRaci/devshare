@@ -1,7 +1,8 @@
 import React from 'react'
-import { Lock, ArrowUp, ArrowDown, Trash2, RefreshCw, FileText } from 'lucide-react'
+import { Lock, ArrowUp, ArrowDown, Trash2, RefreshCw, FileText, Image as ImageIcon } from 'lucide-react'
 import { getLanguageBrandIcon } from './language-icons'
 import { LANGUAGE_OPTIONS } from './code-insert-modal'
+import { NotebookImageCell } from './notebook-image-cell'
 
 export const NotebookCellItem = React.memo(function NotebookCellItem({
   block,
@@ -10,20 +11,23 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
   onUpdateContent,
   onUpdateLang,
   onLoadTemplate,
+  onUpdateImage,
+  onUploadImageFile,
   onMoveBlock,
   onRemoveBlock
 }) {
   const isCode = block.type === 'code'
+  const isImage = block.type === 'image'
   const lang = block.lang || 'python'
   const currentOption = LANGUAGE_OPTIONS.find(l => l.id === lang) || LANGUAGE_OPTIONS[0]
 
   return (
-    <div className={`notebook-cell ${isCode ? 'notebook-cell-code' : 'notebook-cell-text'}`}>
+    <div className={`notebook-cell ${isCode ? 'notebook-cell-code' : isImage ? 'notebook-cell-image' : 'notebook-cell-text'}`}>
       {/* Cell Header */}
       <div className="notebook-cell-header">
         <div className="notebook-cell-meta">
           <span className="notebook-cell-badge">
-            {isCode ? `[${index + 1}] Code` : `[${index + 1}] Text`}
+            {isCode ? `[${index + 1}] Code` : isImage ? `[${index + 1}] Image` : `[${index + 1}] Text`}
           </span>
 
           {isCode ? (
@@ -45,6 +49,11 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
                 <code>```{lang}</code>
               </span>
             </div>
+          ) : isImage ? (
+            <span className="notebook-text-label" style={{ color: '#8B5CF6' }}>
+              <ImageIcon size={14} style={{ marginRight: 5 }} />
+              Blog Image Section
+            </span>
           ) : (
             <span className="notebook-text-label">
               <FileText size={13} style={{ marginRight: 4 }} />
@@ -115,6 +124,12 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
               spellCheck={false}
             />
           </div>
+        ) : isImage ? (
+          <NotebookImageCell
+            block={block}
+            onUpdateImage={onUpdateImage}
+            onUploadImageFile={onUploadImageFile}
+          />
         ) : (
           <textarea
             className="notebook-text-textarea"

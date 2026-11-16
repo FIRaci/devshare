@@ -1,6 +1,10 @@
 /**
  * Notebook Block Parser:
- * Bi-directional converter between standard Markdown text and structured Jupyter-style blocks.
+ * Bi-directional converter between standard Markdown text and structured Jupyter/Blog-style blocks.
+ * Supports:
+ * - 'text' (Markdown explanations, titles, lists)
+ * - 'code' (Code cells with fixed ``` boundaries)
+ * - 'image' (Media blocks with URL and caption)
  */
 
 let blockCounter = 1
@@ -13,52 +17,91 @@ export function generateBlockId() {
  * Parses raw Markdown text into structured blocks:
  * - type: 'text' (normal Markdown text / explanations)
  * - type: 'code' (code cells with fixed ``` boundaries)
+ * - type: 'image' (embedded images ![caption](url))
  */
 export function parseMarkdownToBlocks(markdown = '') {
   if (!markdown || typeof markdown !== 'string') {
     return [{ id: generateBlockId(), type: 'text', content: '' }]
   }
 
-  const blocks = []
-  // Regex matches ```language \n code ```
+  const tokens = []
+
+  // 1. Find all code blocks
   const codeBlockRegex = /```(\w+)?\r?\n([\s\S]*?)```/g
-  let lastIndex = 0
   let match
 
   while ((match = codeBlockRegex.exec(markdown)) !== null) {
-    const textBefore = markdown.slice(lastIndex, match.index)
-    if (textBefore.trim()) {
+    tokens.push({
+      type: 'code',
+      startIndex: match.index,
+      endIndex: match.index + match[0].length,
+      lang: (match[1] || 'python').toLowerCase(),
+      content: (match[2] || '').replace(/\r\n/g, '\n').trim()
+    })
+  }
+
+  // 2. Find all image tokens: ![alt](url)
+  const imageRegex = /!\[(.*?)\]\(([^\s\)]+)\)/g
+  while ((match = imageRegex.exec(markdown)) !== null) {
+    const s = match.index
+    const e = match.index + match[0].length
+    const insideCode = tokens.some(t => t.type === 'code' && s >= t.startIndex && e <= t.endIndex)
+    if (!insideCode) {
+      tokens.push({
+        type: 'image',
+        startIndex: s,
+        endIndex: e,
+        caption: match[1] || '',
+        url: match[2] || ''
+      })
+    }
+  }
+
+  // Sort tokens by startIndex
+  tokens.sort((a, b) => a.startIndex - b.startIndex)
+
+  const blocks = []
+  let lastIndex = 0
+
+  for (const token of tokens) {
+    const textBefore = markdown.slice(lastIndex, token.startIndex).trim()
+    if (textBefore) {
       blocks.push({
         id: generateBlockId(),
         type: 'text',
-        content: textBefore.trim()
+        content: textBefore
       })
     }
 
-    const lang = (match[1] || 'python').toLowerCase()
-    const codeContent = match[2] || ''
+    if (token.type === 'code') {
+      blocks.push({
+        id: generateBlockId(),
+        type: 'code',
+        lang: token.lang,
+        content: token.content
+      })
+    } else if (token.type === 'image') {
+      blocks.push({
+        id: generateBlockId(),
+        type: 'image',
+        caption: token.caption,
+        url: token.url
+      })
+    }
 
-    blocks.push({
-      id: generateBlockId(),
-      type: 'code',
-      lang,
-      content: codeContent.replace(/\r\n/g, '\n').trim()
-    })
-
-    lastIndex = match.index + match[0].length
+    lastIndex = token.endIndex
   }
 
-  // Any remaining text after the last code block
-  const remainingText = markdown.slice(lastIndex)
-  if (remainingText.trim()) {
+  // Any remaining text after the last token
+  const remainingText = markdown.slice(lastIndex).trim()
+  if (remainingText) {
     blocks.push({
       id: generateBlockId(),
       type: 'text',
-      content: remainingText.trim()
+      content: remainingText
     })
   }
 
-  // Ensure at least one block exists
   if (blocks.length === 0) {
     blocks.push({ id: generateBlockId(), type: 'text', content: '' })
   }
@@ -68,7 +111,6 @@ export function parseMarkdownToBlocks(markdown = '') {
 
 /**
  * Compiles structured blocks back into valid Markdown string.
- * Fixed ``` boundaries are generated automatically.
  */
 export function compileBlocksToMarkdown(blocks = []) {
   if (!Array.isArray(blocks) || blocks.length === 0) return ''
@@ -79,6 +121,11 @@ export function compileBlocksToMarkdown(blocks = []) {
         const lang = block.lang || 'python'
         const code = (block.content || '').trim()
         return `\`\`\`${lang}\n${code}\n\`\`\``
+      }
+      if (block.type === 'image') {
+        if (!block.url) return ''
+        const caption = (block.caption || '').trim()
+        return `![${caption}](${block.url.trim()})`
       }
       return (block.content || '').trim()
     })

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Code2, Compass } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Code2, Compass, Edit3 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MarkdownRenderer from './MarkdownRenderer'
 import CodeInsertModal from './code-insert-modal'
@@ -208,7 +208,25 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-head">
-          <h3>{isEdit ? 'Edit Post' : 'Create Post'}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h3 style={{ margin: 0 }}>{isEdit ? 'Edit Post' : 'Create Post'}</h3>
+            <div className="post-modal-view-tabs">
+              <button
+                type="button"
+                className={`post-modal-tab ${!preview ? 'active' : ''}`}
+                onClick={() => setPreview(false)}
+              >
+                <Edit3 size={13} /> Editor
+              </button>
+              <button
+                type="button"
+                className={`post-modal-tab ${preview ? 'active' : ''}`}
+                onClick={() => setPreview(true)}
+              >
+                <Eye size={13} /> Article Preview
+              </button>
+            </div>
+          </div>
           <button type="button" onClick={onClose}><X size={18}/></button>
         </div>
 
@@ -243,10 +261,10 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
               onChange={e => setNewPost(p => ({ ...p, subredditId: e.target.value }))}
               required
             >
-              <option value="">Choose a community you've joined *</option>
+              <option value="">Select community *</option>
               {availableSubreddits.map(s => (
                 <option key={s.id} value={s.id}>
-                  d/{s.name} ✓ (Joined)
+                  d/{s.name}
                 </option>
               ))}
             </select>
@@ -262,39 +280,57 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
             />
           <small style={{ color: 'var(--text-2)', textAlign: 'right', display: 'block', marginTop: -6, marginBottom: 4 }}>{newPost.title.length}/300</small>
 
-          {/* Markdown toolbar */}
-          <div className="md-toolbar">
-            <button type="button" className="md-tool" title="Bold (**text**)" onClick={e => toolbar('**', '**', 'bold text', e)}><Bold size={14}/></button>
-            <button type="button" className="md-tool" title="Italic (*text*)" onClick={e => toolbar('*', '*', 'italic text', e)}><Italic size={14}/></button>
-            <button type="button" className="md-tool" title="Inline code (`code`)" onClick={e => toolbar('`', '`', 'code', e)}><Code size={14}/></button>
-            <button type="button" className="md-tool md-tool-code" title="Insert Code Block / Jupyter Notebook" onClick={e => { e.preventDefault(); setShowCodeModal(true) }}>
-              <Code2 size={14} color="var(--primary)"/>
-              <span style={{ fontSize: 11, fontWeight: 700, marginLeft: 3 }}>Code</span>
-            </button>
-            <div className="md-tool-sep"/>
-            <button type="button" className="md-tool" title="Heading" onClick={e => toolbar('## ', '', 'Heading', e)}><Hash size={14}/></button>
-            <button type="button" className="md-tool" title="Quote" onClick={e => toolbar('> ', '', 'quote', e)}><Quote size={14}/></button>
-            <button type="button" className="md-tool" title="List" onClick={e => toolbar('- ', '', 'item', e)}><List size={14}/></button>
-            <button type="button" className="md-tool" title="Divider" onClick={e => toolbar('\n---\n', '', '', e)}><Minus size={14}/></button>
-            <div className="md-tool-sep"/>
-            <button
-              type="button"
-              className={`md-tool ${preview ? 'active' : ''}`}
-              title="Toggle preview"
-              onClick={() => setPreview(p => !p)}
-            ><Eye size={14}/></button>
-          </div>
-
           {/* Content editor / preview */}
           {preview ? (
-            <div className="md-preview-area">
-              {newPost.content ? <MarkdownRenderer content={newPost.content} /> : <p style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>Nothing to preview yet...</p>}
+            <div className="post-live-preview-card">
+              <div className="post-preview-banner">
+                <span className="post-preview-sub-tag">
+                  {newPost.subredditId
+                    ? `d/${availableSubreddits.find(s => s.id === newPost.subredditId)?.name || 'community'}`
+                    : 'd/select-community'}
+                </span>
+                <span className="post-preview-meta">
+                  u/{user?.username || 'you'} • Just now (Preview Mode)
+                </span>
+              </div>
+
+              <h1 className="post-preview-title">
+                {newPost.title.trim() || 'Untitled Post Preview'}
+              </h1>
+
+              <div className="post-preview-body">
+                {newPost.content ? (
+                  <MarkdownRenderer content={newPost.content} />
+                ) : (
+                  <p style={{ color: 'var(--text-2)', fontStyle: 'italic', padding: '12px 0' }}>
+                    No content written yet. Switch to Editor to compose your article.
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
-            <NotebookEditor
-              value={newPost.content}
-              onChange={val => setNewPost(p => ({ ...p, content: val }))}
-            />
+            <>
+              {/* Markdown toolbar */}
+              <div className="md-toolbar">
+                <button type="button" className="md-tool" title="Bold (**text**)" onClick={e => toolbar('**', '**', 'bold text', e)}><Bold size={14}/></button>
+                <button type="button" className="md-tool" title="Italic (*text*)" onClick={e => toolbar('*', '*', 'italic text', e)}><Italic size={14}/></button>
+                <button type="button" className="md-tool" title="Inline code (`code`)" onClick={e => toolbar('`', '`', 'code', e)}><Code size={14}/></button>
+                <button type="button" className="md-tool md-tool-code" title="Insert Code Block / Jupyter Notebook" onClick={e => { e.preventDefault(); setShowCodeModal(true) }}>
+                  <Code2 size={14} color="var(--primary)"/>
+                  <span style={{ fontSize: 11, fontWeight: 700, marginLeft: 3 }}>Code</span>
+                </button>
+                <div className="md-tool-sep"/>
+                <button type="button" className="md-tool" title="Heading" onClick={e => toolbar('## ', '', 'Heading', e)}><Hash size={14}/></button>
+                <button type="button" className="md-tool" title="Quote" onClick={e => toolbar('> ', '', 'quote', e)}><Quote size={14}/></button>
+                <button type="button" className="md-tool" title="List" onClick={e => toolbar('- ', '', 'item', e)}><List size={14}/></button>
+                <button type="button" className="md-tool" title="Divider" onClick={e => toolbar('\n---\n', '', '', e)}><Minus size={14}/></button>
+              </div>
+
+              <NotebookEditor
+                value={newPost.content}
+                onChange={val => setNewPost(p => ({ ...p, content: val }))}
+              />
+            </>
           )}
 
           {/* Attachments preview strip */}

@@ -75,6 +75,41 @@ export async function apiUpload(path, formData) {
   return res.json()
 }
 
+// ── Domain API Modules ───────────────────────────────────────────────────────
+export const postsApi = {
+  list: (params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return apiGet(`/posts${qs ? `?${qs}` : ''}`)
+  },
+  get: (id) => apiGet(`/posts/${id}`),
+  create: (data) => apiPost('/posts', data),
+  update: (id, data) => apiPatch(`/posts/${id}`, data),
+  delete: (id) => apiDelete(`/posts/${id}`)
+}
+
+export const communitiesApi = {
+  list: () => apiGet('/subreddits'),
+  get: (name) => apiGet(`/subreddits/${name}`),
+  create: (data) => apiPost('/subreddits', data),
+  update: (name, data) => apiPatch(`/subreddits/${name}`, data),
+  join: (name) => apiPost(`/subreddits/${name}/join`, {}),
+  delete: (name) => apiDelete(`/subreddits/${name}`)
+}
+
+export const authApi = {
+  login: (creds) => apiPost('/auth/login', creds),
+  register: (data) => apiPost('/auth/register', data),
+  me: () => apiGet('/auth/me')
+}
+
+export const mediaApi = {
+  upload: (file) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return apiUpload('/upload', fd)
+  }
+}
+
 // Patch global fetch — auto-clears auth on any 401 response
 {
   const origFetch = window.fetch

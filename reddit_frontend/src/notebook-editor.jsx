@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Plus, Code2, FileText, BookOpen, Edit3 } from 'lucide-react'
+import { BookOpen, Edit3 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { NotebookCellItem } from './notebook-cell-item'
+import { NotebookInterAdd, NotebookBottomBar } from './notebook-add-controls'
 import { parseMarkdownToBlocks, compileBlocksToMarkdown, generateBlockId } from './notebook-block-parser'
 import { LANGUAGE_OPTIONS } from './code-insert-modal'
+import { getToken } from './api'
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 export default function NotebookEditor({ value = '', onChange }) {
-  const [mode, setMode] = useState('notebook') // 'notebook' | 'raw'
+  const [mode, setMode] = useState('notebook')
   const [blocks, setBlocks] = useState(() => parseMarkdownToBlocks(value))
   const lastEmittedValue = useRef(value)
 
-  // Sync external changes (e.g. initialPost or external toolbar insertions)
   useEffect(() => {
     if (value !== lastEmittedValue.current) {
       lastEmittedValue.current = value
@@ -34,9 +38,11 @@ export default function NotebookEditor({ value = '', onChange }) {
     })
   }, [onChange])
 
+  // Automatically update template when switching language in cell
   const handleUpdateLang = useCallback((blockId, lang) => {
+    const template = LANGUAGE_OPTIONS.find(l => l.id === lang)?.sample || ''
     setBlocks(prev => {
-      const next = prev.map(b => b.id === blockId ? { ...b, lang } : b)
+      const next = prev.map(b => b.id === blockId ? { ...b, lang, content: template } : b)
       const compiled = compileBlocksToMarkdown(next)
       lastEmittedValue.current = compiled
       onChange?.(compiled)
@@ -53,6 +59,36 @@ export default function NotebookEditor({ value = '', onChange }) {
       return next
     })
   }, [onChange])
+
+  const handleUpdateImage = useCallback((blockId, updates) => {
+    setBlocks(prev => {
+      const next = prev.map(b => b.id === blockId ? { ...b, ...updates } : b)
+      const compiled = compileBlocksToMarkdown(next)
+      lastEmittedValue.current = compiled
+      onChange?.(compiled)
+      return next
+    })
+  }, [onChange])
+
+  const handleUploadImageFile = useCallback(async (file, blockId) => {
+    const token = getToken()
+    const fd = new FormData()
+    fd.append('file', file)
+    const tId = toast.loading('Uploading image...')
+    try {
+      const res = await fetch(`${API}/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Upload failed')
+      toast.success('Image uploaded!', { id: tId })
+      handleUpdateImage(blockId, { url: d.url })
+    } catch (err) {
+      toast.error(err.message || 'Upload failed', { id: tId })
+    }
+  }, [handleUpdateImage])
 
   const handleMoveBlock = useCallback((index, direction) => {
     setBlocks(prev => {
@@ -87,33 +123,28 @@ export default function NotebookEditor({ value = '', onChange }) {
       id: generateBlockId(),
       type,
       lang: type === 'code' ? lang : undefined,
-      content: defaultSample
+      content: defaultSample,
+      url: type === 'image' ? '' : undefined,
+      caption: type === 'image' ? '' : undefined
     }
     const next = [...blocks]
     next.splice(index, 0, newBlock)
     notifyChange(next)
   }
 
-  const handleSwitchMode = (newMode) => {
-    if (newMode === mode) return
-    if (newMode === 'notebook') {
-      setBlocks(parseMarkdownToBlocks(value))
-    }
-    setMode(newMode)
-  }
-
   const textCount = blocks.filter(b => b.type === 'text').length
   const codeCount = blocks.filter(b => b.type === 'code').length
+  const imageCount = blocks.filter(b => b.type === 'image').length
 
   return (
     <div className="notebook-editor-container">
-      {/* View Switcher & Quick Meta Header */}
+      {/* View Switcher Header */}
       <div className="notebook-toolbar-header">
         <div className="notebook-mode-pills">
           <button
             type="button"
             className={`notebook-mode-btn ${mode === 'notebook' ? 'active' : ''}`}
-            onClick={() => handleSwitchMode('notebook')}
+            onClick={() => { setBlocks(parseMarkdownToBlocks(value)); setMode('notebook') }}
           >
             <BookOpen size={14} />
             <span>Notebook Cells</span>
@@ -121,7 +152,7 @@ export default function NotebookEditor({ value = '', onChange }) {
           <button
             type="button"
             className={`notebook-mode-btn ${mode === 'raw' ? 'active' : ''}`}
-            onClick={() => handleSwitchMode('raw')}
+            onClick={() => setMode('raw')}
           >
             <Edit3 size={14} />
             <span>Raw Markdown</span>
@@ -131,7 +162,9 @@ export default function NotebookEditor({ value = '', onChange }) {
         <div className="notebook-stats">
           <span>{textCount} Text</span>
           <span className="notebook-stats-dot">•</span>
-          <span>{codeCount} Code (``` fixed)</span>
+          <span>{codeCount} Code</span>
+          <span className="notebook-stats-dot">•</span>
+          <span>{imageCount} Images</span>
         </div>
       </div>
 
@@ -157,52 +190,17 @@ export default function NotebookEditor({ value = '', onChange }) {
                 onUpdateContent={handleUpdateContent}
                 onUpdateLang={handleUpdateLang}
                 onLoadTemplate={handleLoadTemplate}
+                onUpdateImage={handleUpdateImage}
+                onUploadImageFile={handleUploadImageFile}
                 onMoveBlock={handleMoveBlock}
                 onRemoveBlock={handleRemoveBlock}
               />
 
-              {/* Inter-cell Add Controls */}
-              <div className="notebook-inter-add">
-                <button
-                  type="button"
-                  className="notebook-inter-btn"
-                  onClick={() => handleAddBlock(idx + 1, 'text')}
-                >
-                  <Plus size={12} /> Add Text
-                </button>
-                <button
-                  type="button"
-                  className="notebook-inter-btn"
-                  onClick={() => handleAddBlock(idx + 1, 'code')}
-                >
-                  <Code2 size={12} /> Add Code
-                </button>
-              </div>
+              <NotebookInterAdd onAdd={(type, lang) => handleAddBlock(idx + 1, type, lang)} />
             </React.Fragment>
           ))}
 
-          {/* Bottom Add Bar */}
-          <div className="notebook-bottom-bar">
-            <span className="notebook-bottom-hint">Append new section:</span>
-            <div className="notebook-bottom-actions">
-              <button
-                type="button"
-                className="btn-notebook-add btn-notebook-add-text"
-                onClick={() => handleAddBlock(blocks.length, 'text')}
-              >
-                <FileText size={14} />
-                <span>+ Markdown Text Section</span>
-              </button>
-              <button
-                type="button"
-                className="btn-notebook-add btn-notebook-add-code"
-                onClick={() => handleAddBlock(blocks.length, 'code', 'python')}
-              >
-                <Code2 size={14} />
-                <span>+ Jupyter / Code Cell</span>
-              </button>
-            </div>
-          </div>
+          <NotebookBottomBar onAdd={(type, lang) => handleAddBlock(blocks.length, type, lang)} />
         </div>
       )}
     </div>

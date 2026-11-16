@@ -379,14 +379,117 @@ export default function App() {
     fetchPosts(true)
   }, [fetchPosts])
 
-  // Handle shared post URLs: #/post/{id}
-  const openSharedPost = () => {
-    const match = window.location.hash.match(/^#\/post\/(.+)/)
-    if (!match) return
-    fetch(`${API}/posts/${match[1]}`).then(r => r.json()).then(d => { if (d && !d.error) setSelectedPost(d) }).catch(() => {})
-    window.history.replaceState(null, '', '/')
-  }
-  useEffect(() => { openSharedPost(); window.addEventListener('hashchange', openSharedPost); return () => window.removeEventListener('hashchange', openSharedPost) }, [])
+  const navigateTo = useCallback((url, stateUpdateFn) => {
+    window.history.pushState(null, '', url)
+    stateUpdateFn?.()
+  }, [])
+
+  const navHome = useCallback(() => {
+    navigateTo('/', () => {
+      setSelectedSub(null)
+      setSelectedPost(null)
+      setProfileUser(null)
+      setIsExploreView(false)
+    })
+  }, [navigateTo])
+
+  const navExplore = useCallback(() => {
+    navigateTo('/explore', () => {
+      setSelectedSub(null)
+      setSelectedPost(null)
+      setProfileUser(null)
+      setIsExploreView(true)
+    })
+  }, [navigateTo])
+
+  const navSubreddit = useCallback((subName) => {
+    navigateTo(`/d/${subName}`, () => {
+      setSelectedSub(subName)
+      setSelectedPost(null)
+      setProfileUser(null)
+      setIsExploreView(false)
+    })
+  }, [navigateTo])
+
+  const navPost = useCallback((post) => {
+    navigateTo(`/p/${post.id}`, () => {
+      setSelectedPost(post)
+      setProfileUser(null)
+      setIsExploreView(false)
+    })
+  }, [navigateTo])
+
+  const navProfile = useCallback((username) => {
+    navigateTo(`/u/${username}`, () => {
+      setProfileUser(username)
+      setSelectedSub(null)
+      setSelectedPost(null)
+      setIsExploreView(false)
+    })
+  }, [navigateTo])
+
+  // Bi-directional SPA URL route synchronization
+  const syncRouteFromUrl = useCallback(() => {
+    const path = window.location.pathname
+    const hash = window.location.hash
+
+    if (path === '/explore' || hash === '#/explore') {
+      setIsExploreView(true)
+      setSelectedSub(null)
+      setSelectedPost(null)
+      setProfileUser(null)
+      return
+    }
+
+    const dMatch = path.match(/^\/d\/([^/]+)/) || hash.match(/^#\/d\/([^/]+)/)
+    if (dMatch) {
+      setSelectedSub(dMatch[1])
+      setSelectedPost(null)
+      setProfileUser(null)
+      setIsExploreView(false)
+      return
+    }
+
+    const pMatch = path.match(/^\/(?:p|post)\/([^/]+)/) || hash.match(/^#\/(?:p|post)\/([^/]+)/)
+    if (pMatch) {
+      const postId = pMatch[1]
+      fetch(`${API}/posts/${postId}`).then(r => r.json()).then(d => {
+        if (d && !d.error) {
+          setSelectedPost(d)
+          setSelectedSub(null)
+          setProfileUser(null)
+          setIsExploreView(false)
+        }
+      }).catch(() => {})
+      return
+    }
+
+    const uMatch = path.match(/^\/u\/([^/]+)/) || hash.match(/^#\/u\/([^/]+)/)
+    if (uMatch) {
+      setProfileUser(uMatch[1])
+      setSelectedSub(null)
+      setSelectedPost(null)
+      setIsExploreView(false)
+      return
+    }
+
+    if (path === '/' || !path) {
+      setSelectedSub(null)
+      setSelectedPost(null)
+      setProfileUser(null)
+      setIsExploreView(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    syncRouteFromUrl()
+    window.addEventListener('popstate', syncRouteFromUrl)
+    window.addEventListener('hashchange', syncRouteFromUrl)
+    return () => {
+      window.removeEventListener('popstate', syncRouteFromUrl)
+      window.removeEventListener('hashchange', syncRouteFromUrl)
+    }
+  }, [syncRouteFromUrl])
 
   const toggleJoin=async(n)=>{
     if (!user) { setShowAuth(true); return; }
@@ -422,13 +525,6 @@ export default function App() {
 
   const displayPosts = posts
 
-  const navHome = () => {
-    setSelectedSub(null)
-    setSelectedPost(null)
-    setProfileUser(null)
-    setIsExploreView(false)
-  }
-
   const handleOpenCreatePost = () => {
     if (!user) {
       setShowAuth(true)
@@ -436,10 +532,7 @@ export default function App() {
     }
     if (joinedSubs.size === 0) {
       toast('You must join a community before you can post! Exploring communities...', { icon: '🚀' })
-      setSelectedSub(null)
-      setSelectedPost(null)
-      setProfileUser(null)
-      setIsExploreView(true)
+      navExplore()
       return
     }
     setShowCreatePost(true)
@@ -528,7 +621,7 @@ export default function App() {
                           onClick={() => {
                             if (n.postId) {
                               // Fetch the post and navigate to it
-                              fetch(`${API}/posts/${n.postId}`).then(r=>r.json()).then(p=>{if(p&&!p.error)setSelectedPost(p)}).catch(()=>{})
+                              fetch(`${API}/posts/${n.postId}`).then(r=>r.json()).then(p=>{if(p&&!p.error)navPost(p)}).catch(()=>{})
                               setShowNotifs(false)
                             }
                           }}
@@ -594,14 +687,14 @@ export default function App() {
             <nav className="side-nav">
               <p className="side-label">FEEDS</p>
               <button className={`side-link ${!selectedSub && !profileUser && !isExploreView ? 'active' : ''}`} onClick={navHome}><Home size={16}/> Home</button>
-              <button className={`side-link ${isExploreView ? 'active' : ''}`} onClick={() => { setSelectedSub(null); setSelectedPost(null); setProfileUser(null); setIsExploreView(true); }}><Compass size={16}/> Explore</button>
+              <button className={`side-link ${isExploreView ? 'active' : ''}`} onClick={navExplore}><Compass size={16}/> Explore</button>
               <div className="side-divider"/>
               <div className="side-label-row">
                 <p className="side-label">COMMUNITIES</p>
                 <button className="create-sub-btn" onClick={()=>setShowCreateSub(true)}><Plus size={12}/></button>
               </div>
               {subreddits.map(sub=>(
-                <button key={sub.id} className={`side-link community-link ${selectedSub===sub.name?'active':''}`} onClick={()=>{setSelectedSub(sub.name);setSelectedPost(null);setProfileUser(null);setIsExploreView(false)}}>
+                <button key={sub.id} className={`side-link community-link ${selectedSub===sub.name?'active':''}`} onClick={()=>navSubreddit(sub.name)}>
                   <div className="sub-icon">{sub.name[0].toUpperCase()}</div>
                   <div className="sub-link-info"><span>d/{sub.name}</span><small>{sub._count?.posts} posts</small></div>
                 </button>
@@ -613,19 +706,19 @@ export default function App() {
         <main className="feed-area">
           <AnimatePresence mode="wait">
             {profileUser ? (
-              <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser} onProfileSaved={fetchAll}/>
+              <ProfilePage key="profile" username={profileUser} onBack={navHome} onPostClick={p=>{navPost(p)}} onUsernameChange={setProfileUser} onProfileSaved={fetchAll}/>
             ) : isExploreView ? (
               <ExploreCommunities
                 key="explore"
                 subreddits={subreddits}
                 joinedSubs={joinedSubs}
                 onJoinToggle={toggleJoin}
-                onSelectSubreddit={(subName) => { setSelectedSub(subName); setIsExploreView(false); }}
+                onSelectSubreddit={navSubreddit}
                 onCreateSubClick={() => setShowCreateSub(true)}
                 user={user}
               />
             ) : selectedPost ? (
-              <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{setSelectedPost(null); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/>
+              <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{navHome(); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={navProfile}/>
             ) : (
               <motion.div key="feed" initial={{opacity:0}} animate={{opacity:1}}>
                 <div className="feed-header">
@@ -655,7 +748,7 @@ export default function App() {
                     ?<div className="empty-feed"><LayoutGrid size={40}/><p>No posts found</p><button className="btn-post" onClick={handleOpenCreatePost}>Create first post</button></div>
                     :(
                       <>
-                        {displayPosts.slice(0, visibleCount).map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/> )}
+                        {displayPosts.slice(0, visibleCount).map(post=><PostCard key={post.id} post={post} onClick={()=>navPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={navProfile}/> )}
                         {displayPosts.length > visibleCount && (
                           <div style={{display:'flex',justifyContent:'center',padding:'18px 0'}}>
                             <button className="btn-outline" onClick={()=>setVisibleCount(c=>c+20)}>
@@ -681,7 +774,7 @@ export default function App() {
             user={user}
             onClose={() => setShowCreatePost(false)}
             onSuccess={() => fetchAll()}
-            onExploreRedirect={() => { setIsExploreView(true); setSelectedSub(null); setSelectedPost(null); }}
+            onExploreRedirect={navExplore}
           />
         )}
         {editPost && (
