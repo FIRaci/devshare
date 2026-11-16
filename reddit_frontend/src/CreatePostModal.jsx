@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Code2 } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Code2, Compass } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MarkdownRenderer from './MarkdownRenderer'
 import CodeInsertModal from './code-insert-modal'
@@ -35,7 +35,7 @@ const AttachmentThumb = React.memo(function AttachmentThumb({ att, i, onRemove }
   )
 })
 
-const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], joinedSubs = new Set(), user, onClose, onSuccess, initialPost = null }) {
+const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], joinedSubs = new Set(), user, onClose, onSuccess, onExploreRedirect, initialPost = null }) {
   const isEdit = Boolean(initialPost)
   const [newPost, setNewPost] = useState({ title: '', content: '', subredditId: '' })
   const [attachments, setAttachments] = useState([]) // [{type, url, name, size, linkPreview?}]
@@ -176,8 +176,8 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
     finally { setSubmitting(false) }
   }
 
-  const sortedSubreddits = useMemo(() => {
-    return [...subreddits].sort((a, b) => (joinedSubs.has(b.name) ? 1 : 0) - (joinedSubs.has(a.name) ? 1 : 0))
+  const availableSubreddits = useMemo(() => {
+    return subreddits.filter(s => joinedSubs.has(s.name))
   }, [subreddits, joinedSubs])
 
   return (
@@ -199,28 +199,57 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
       >
         <div className="modal-head">
           <h3>{isEdit ? 'Edit Post' : 'Create Post'}</h3>
-          <button onClick={onClose}><X size={18}/></button>
+          <button type="button" onClick={onClose}><X size={18}/></button>
         </div>
-        <form onSubmit={submit} className="modal-body">
-          {/* Community select */}
-          <select
-            value={newPost.subredditId}
-            onChange={e => setNewPost(p => ({ ...p, subredditId: e.target.value }))}
-            required
-          >
-            <option value="">Choose a community *</option>
-            {sortedSubreddits.map(s => <option key={s.id} value={s.id}>d/{s.name} {joinedSubs.has(s.name) ? '⭐' : ''}</option>)}
-          </select>
 
-          {/* Title */}
-          <input
-            type="text"
-            placeholder="Title *"
-            value={newPost.title}
-            onChange={e => setNewPost(p => ({ ...p, title: e.target.value }))}
-            required
-            maxLength={300}
-          />
+        {availableSubreddits.length === 0 ? (
+          <div className="modal-body" style={{ textAlign: 'center', padding: '36px 20px' }}>
+            <div style={{ fontSize: 42, marginBottom: 14 }}>🚀</div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Join a Community First</h3>
+            <p style={{ color: 'var(--text-2)', fontSize: 13, lineHeight: 1.6, maxWidth: 440, margin: '0 auto 20px' }}>
+              On DevShare, you must be a member of a community before you can publish posts in it. Explore developer communities to join!
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button type="button" className="btn-outline" onClick={onClose}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-post"
+                onClick={() => {
+                  onClose()
+                  onExploreRedirect?.()
+                }}
+              >
+                <Compass size={15} style={{ marginRight: 5 }} /> Explore Communities
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="modal-body">
+            {/* Community select */}
+            <select
+              value={newPost.subredditId}
+              onChange={e => setNewPost(p => ({ ...p, subredditId: e.target.value }))}
+              required
+            >
+              <option value="">Choose a community you've joined *</option>
+              {availableSubreddits.map(s => (
+                <option key={s.id} value={s.id}>
+                  d/{s.name} ✓ (Joined)
+                </option>
+              ))}
+            </select>
+
+            {/* Title */}
+            <input
+              type="text"
+              placeholder="Title *"
+              value={newPost.title}
+              onChange={e => setNewPost(p => ({ ...p, title: e.target.value }))}
+              required
+              maxLength={300}
+            />
           <small style={{ color: 'var(--text-2)', textAlign: 'right', display: 'block', marginTop: -6, marginBottom: 4 }}>{newPost.title.length}/300</small>
 
           {/* Markdown toolbar */}
@@ -312,6 +341,7 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
             </button>
           </div>
         </form>
+        )}
       </motion.div>
 
       <CodeInsertModal

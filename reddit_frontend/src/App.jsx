@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
-import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Settings as SettingsIcon, Shield, Users, Crown, ArrowUpDown } from 'lucide-react'
+import { Search, Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, Bookmark, Home, TrendingUp, LayoutGrid, Moon, Sun, Bell, X, ArrowLeft, Send, Clock, Flame, Award, Layers, ChevronDown, LogIn, PanelLeftClose, PanelLeftOpen, Edit3, Settings as SettingsIcon, Shield, Users, Crown, ArrowUpDown, Compass } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import AuthPage from './AuthPage'
 import ProfilePage from './ProfilePage'
@@ -11,6 +11,7 @@ import CreatePostModal from './CreatePostModal'
 import CreateCommunityModal from './create-community-modal'
 import SubSettingsModal from './sub-settings-modal'
 import ActionModal from './action-modal'
+import ExploreCommunities from './ExploreCommunities'
 import CommentComposer from './CommentComposer'
 import UserAvatar from './UserAvatar'
 import { getToken } from './api'
@@ -271,6 +272,8 @@ export default function App() {
   const [showCreatePost,setShowCreatePost]=useState(false)
   const [editPost, setEditPost] = useState(null)
   const [showCreateSub,setShowCreateSub]=useState(false)
+  const [isExploreView, setIsExploreView] = useState(false)
+  const [feedLoading, setFeedLoading] = useState(false)
   const [sortBy,setSortBy]=useState('new')
   const [sortDesc,setSortDesc]=useState(true)
   const [searchQuery,setSearchQuery]=useState('')
@@ -280,6 +283,8 @@ export default function App() {
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [showSubSettings, setShowSubSettings] = useState(false)
+
+  const deferredSearch = useDeferredValue(searchQuery)
 
   const fetchNotifs = useCallback(async () => {
     if (!user) { setNotifications([]); return; }
@@ -298,52 +303,58 @@ export default function App() {
     return () => { active = false }
   }, [fetchNotifs])
 
-  const fetchAll = useCallback(async (showLoader = true) => {
-    // Stale-while-revalidate: show cached data instantly
-    const cachedPosts = sessionStorage.getItem('ds:posts')
-    const cachedSubs = sessionStorage.getItem('ds:subs')
-    if (cachedPosts && cachedSubs && showLoader) {
-      try {
-        setPosts(selectedSub ? [] : JSON.parse(cachedPosts))
-        setSubreddits(JSON.parse(cachedSubs))
-        setLoading(false)
-      } catch {
-        // Ignored
-      }
-    } else if (showLoader) {
-      setLoading(true)
-    }
+  const fetchPosts = useCallback(async (showLoader = false) => {
+    if (showLoader) setFeedLoading(true)
     try {
-      const [pr, sr] = await Promise.all([
-        fetch(selectedSub ? `${API}/subreddits/${selectedSub}` : `${API}/posts`),
-        fetch(`${API}/subreddits`)
-      ])
-      const pd = await pr.json()
-      const sd = await sr.json()
-      const newPosts = selectedSub ? (pd.posts ?? []) : pd
-      setPosts(newPosts)
-      setSubreddits(sd)
-      // Cache for next visit
-      if (!selectedSub) sessionStorage.setItem('ds:posts', JSON.stringify(newPosts))
-      sessionStorage.setItem('ds:subs', JSON.stringify(sd))
+      const order = sortDesc ? 'desc' : 'asc'
+      const params = new URLSearchParams()
+      params.set('sort', sortBy)
+      params.set('order', order)
+      if (deferredSearch.trim()) params.set('q', deferredSearch.trim())
+      if (selectedSub) params.set('subreddit', selectedSub)
+
+      const res = await fetch(`${API}/posts?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPosts(data)
+        if (!selectedSub && !deferredSearch.trim() && sortBy === 'new' && sortDesc) {
+          sessionStorage.setItem('ds:posts', JSON.stringify(data))
+        }
+      }
     } catch {
-      toast.error('Failed to load')
+      // Ignored
+    } finally {
+      setFeedLoading(false)
+      setLoading(false)
+    }
+  }, [selectedSub, sortBy, sortDesc, deferredSearch])
+
+  const fetchAll = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true)
+    try {
+      const [sr] = await Promise.all([
+        fetch(`${API}/subreddits`),
+        fetchPosts(false)
+      ])
+      if (sr.ok) {
+        const sd = await sr.json()
+        setSubreddits(sd)
+        sessionStorage.setItem('ds:subs', JSON.stringify(sd))
+      }
+    } catch {
+      // Ignored
     } finally {
       setLoading(false)
     }
-  }, [selectedSub])
+  }, [fetchPosts])
 
-  // Right sidebar only shows on main feed (not profile, not post detail)
-  const showRightSidebar = !profileUser && !selectedPost
-
-  useEffect(() => { document.body.setAttribute('data-theme', isDark ? 'dark' : 'light') }, [isDark])
   useEffect(() => {
     let active = true
     Promise.resolve().then(() => {
-      if (active) fetchAll()
+      if (active) fetchPosts(true)
     })
     return () => { active = false }
-  }, [fetchAll])
+  }, [fetchPosts])
 
   // Handle shared post URLs: #/post/{id}
   const openSharedPost = () => {
@@ -382,25 +393,34 @@ export default function App() {
     }
   }
 
-  const deferredSearch = useDeferredValue(searchQuery)
   const [visibleCount, setVisibleCount] = useState(20)
 
   useEffect(() => { setVisibleCount(20) }, [selectedSub, sortBy, sortDesc, deferredSearch])
 
-  const displayPosts = useMemo(() => {
-    const query = (deferredSearch || '').trim().toLowerCase()
-    return [...posts]
-      .filter(p => !query || p.title?.toLowerCase().includes(query))
-      .sort((a,b) => {
-        let cmp = 0
-        if (sortBy === 'top') cmp = getScore(b.votes) - getScore(a.votes)
-        else if (sortBy === 'hot') cmp = (getScore(b.votes) + (b._count?.comments ?? 0) * 2) - (getScore(a.votes) + (a._count?.comments ?? 0) * 2)
-        else cmp = new Date(b.createdAt) - new Date(a.createdAt)
-        return sortDesc ? cmp : -cmp
-      })
-  }, [posts, deferredSearch, sortBy, sortDesc])
+  const displayPosts = posts
 
-  const navHome=()=>{setSelectedSub(null);setSelectedPost(null);setProfileUser(null)}
+  const navHome = () => {
+    setSelectedSub(null)
+    setSelectedPost(null)
+    setProfileUser(null)
+    setIsExploreView(false)
+  }
+
+  const handleOpenCreatePost = () => {
+    if (!user) {
+      setShowAuth(true)
+      return
+    }
+    if (joinedSubs.size === 0) {
+      toast('You must join a community before you can post! Exploring communities...', { icon: '🚀' })
+      setSelectedSub(null)
+      setSelectedPost(null)
+      setProfileUser(null)
+      setIsExploreView(true)
+      return
+    }
+    setShowCreatePost(true)
+  }
 
   const handlePostUpdated = (updated) => {
     if (!updated) return
@@ -537,11 +557,11 @@ export default function App() {
           ):(
             <button className="login-btn" onClick={()=>setShowAuth(true)}><LogIn size={16}/> Log in</button>
           )}
-          <button className="create-btn" onClick={()=>{ if(!user){setShowAuth(true);return}; setShowCreatePost(true)}}><Plus size={16}/> Create</button>
+          <button className="create-btn" onClick={handleOpenCreatePost}><Plus size={16}/> Create</button>
         </div>
       </nav>
 
-      <div className={`body-grid ${leftCollapsed?'left-collapsed':''} ${!showRightSidebar?'no-right':''}`}>
+      <div className={`body-grid ${leftCollapsed?'left-collapsed':''}`}>
         {mobileMenuOpen && <div className="modal-backdrop" style={{zIndex:99}} onClick={()=>setMobileMenuOpen(false)}/>}
         <aside className={`sidebar-left ${leftCollapsed?'collapsed':''} ${mobileMenuOpen?'open':''}`}>
           <button className="collapse-btn" onClick={()=>setLeftCollapsed(c=>!c)} title={leftCollapsed?'Expand sidebar':'Collapse sidebar'}>
@@ -550,17 +570,15 @@ export default function App() {
           {!leftCollapsed && (
             <nav className="side-nav">
               <p className="side-label">FEEDS</p>
-              <button className={`side-link ${!selectedSub&&!profileUser?'active':''}`} onClick={navHome}><Home size={16}/> Home</button>
-              <button className="side-link" onClick={()=>{setSortBy('hot');navHome()}}><Flame size={16}/> Popular</button>
-              <button className="side-link" onClick={()=>{setSortBy('new');navHome()}}><TrendingUp size={16}/> New</button>
-              <button className="side-link" onClick={()=>{setSortBy('top');navHome()}}><Award size={16}/> Top</button>
+              <button className={`side-link ${!selectedSub && !profileUser && !isExploreView ? 'active' : ''}`} onClick={navHome}><Home size={16}/> Home</button>
+              <button className={`side-link ${isExploreView ? 'active' : ''}`} onClick={() => { setSelectedSub(null); setSelectedPost(null); setProfileUser(null); setIsExploreView(true); }}><Compass size={16}/> Explore</button>
               <div className="side-divider"/>
               <div className="side-label-row">
                 <p className="side-label">COMMUNITIES</p>
                 <button className="create-sub-btn" onClick={()=>setShowCreateSub(true)}><Plus size={12}/></button>
               </div>
               {subreddits.map(sub=>(
-                <button key={sub.id} className={`side-link community-link ${selectedSub===sub.name?'active':''}`} onClick={()=>{setSelectedSub(sub.name);setSelectedPost(null);setProfileUser(null)}}>
+                <button key={sub.id} className={`side-link community-link ${selectedSub===sub.name?'active':''}`} onClick={()=>{setSelectedSub(sub.name);setSelectedPost(null);setProfileUser(null);setIsExploreView(false)}}>
                   <div className="sub-icon">{sub.name[0].toUpperCase()}</div>
                   <div className="sub-link-info"><span>d/{sub.name}</span><small>{sub._count?.posts} posts</small></div>
                 </button>
@@ -573,6 +591,16 @@ export default function App() {
           <AnimatePresence mode="wait">
             {profileUser ? (
               <ProfilePage key="profile" username={profileUser} onBack={()=>setProfileUser(null)} onPostClick={p=>{setSelectedPost(p);setProfileUser(null)}} onUsernameChange={setProfileUser} onProfileSaved={fetchAll}/>
+            ) : isExploreView ? (
+              <ExploreCommunities
+                key="explore"
+                subreddits={subreddits}
+                joinedSubs={joinedSubs}
+                onJoinToggle={toggleJoin}
+                onSelectSubreddit={(subName) => { setSelectedSub(subName); setIsExploreView(false); }}
+                onCreateSubClick={() => setShowCreateSub(true)}
+                user={user}
+              />
             ) : selectedPost ? (
               <PostDetail key="detail" post={selectedPost} onBack={(updatedPost)=>{setSelectedPost(null); if(updatedPost) setPosts(prev=>prev.map(p=>p.id===updatedPost.id?updatedPost:p))}} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/>
             ) : (
@@ -586,13 +614,14 @@ export default function App() {
                     </>
                   )}
                   <div className="sort-tabs">
+                    {feedLoading && <span className="feed-spinner" title="Loading posts..." />}
                     {[{id:'hot',icon:<Flame size={13}/>,label:'Hot'},{id:'new',icon:<Clock size={13}/>,label:'New'},{id:'top',icon:<Award size={13}/>,label:'Top'}].map(s=>(
                       <button key={s.id} className={`sort-tab ${sortBy===s.id?'active':''}`} onClick={()=>setSortBy(s.id)}>{s.icon}{s.label}</button>
                     ))}
                     <button className={`sort-tab ${!sortDesc?'active':''}`} onClick={()=>setSortDesc(d=>!d)} title={sortDesc?'Descending':'Ascending'}><ArrowUpDown size={13}/></button>
                   </div>
                 </div>
-                <div className="create-stub" onClick={()=>{ if(!user){setShowAuth(true);return}; setShowCreatePost(true)}}>
+                <div className="create-stub" onClick={handleOpenCreatePost}>
                   <div className="stub-avatar" style={{background: user?.avatarUrl ? 'transparent' : (user?.avatarColor ?? 'var(--primary)'), overflow: 'hidden'}}>{user?.avatarUrl ? <img src={user.avatarUrl} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/> : (user?user.username[0].toUpperCase():'?')}</div>
                   <div className="stub-input">{user ? "What's on your mind?" : 'Log in to post...'}</div>
                   <button className="stub-btn"><Plus size={15}/></button>
@@ -600,7 +629,7 @@ export default function App() {
                 {loading
                   ?<div className="skeleton-list">{[1,2,3].map(n=><div key={n} className="skeleton"/>)}</div>
                   :displayPosts.length===0
-                    ?<div className="empty-feed"><LayoutGrid size={40}/><p>No posts found</p><button className="btn-post" onClick={()=>{if(!user){setShowAuth(true);return};setShowCreatePost(true)}}>Create first post</button></div>
+                    ?<div className="empty-feed"><LayoutGrid size={40}/><p>No posts found</p><button className="btn-post" onClick={handleOpenCreatePost}>Create first post</button></div>
                     :(
                       <>
                         {displayPosts.slice(0, visibleCount).map(post=><PostCard key={post.id} post={post} onClick={()=>setSelectedPost(post)} onAuthRequired={()=>setShowAuth(true)} onAction={handleAction} onUserClick={setProfileUser}/> )}
@@ -618,37 +647,6 @@ export default function App() {
             )}
           </AnimatePresence>
         </main>
-
-        {showRightSidebar && (
-          <aside className="sidebar-right">
-            <div className="info-card">
-              <div className="info-banner"><Layers size={26} color="white" opacity={0.4}/></div>
-              <div className="info-body">
-                <div className="info-brand"><Layers size={16} color="var(--primary)"/><h4>DevShare</h4></div>
-                <p>Your community hub for developers.</p>
-                {!user&&<button className="btn-post w-full" onClick={()=>setShowAuth(true)}><LogIn size={14}/> Join DevShare</button>}
-                {user&&<button className="btn-post w-full" onClick={()=>setShowCreatePost(true)}><Plus size={14}/> Create Post</button>}
-                <button className="btn-outline w-full" onClick={()=>setShowCreateSub(true)}>Create Community</button>
-              </div>
-            </div>
-            <div className="info-card">
-              <div className="info-body">
-                <h4 className="card-title">Top Communities</h4>
-                {subreddits.slice(0,6).map((sub,i)=>(
-                  <div key={sub.id} className="community-row">
-                    <span className="rank">#{i+1}</span>
-                    <div className="sub-icon sm">{sub.name[0].toUpperCase()}</div>
-                    <div className="sub-row-info">
-                      <button className="sub-row-name" onClick={()=>{setSelectedSub(sub.name);setSelectedPost(null);setProfileUser(null)}}>d/{sub.name}</button>
-                      <small>{sub._count?.posts} posts</small>
-                    </div>
-                    <button className={`join-btn ${joinedSubs.has(sub.name)?'joined':''}`} onClick={()=>toggleJoin(sub.name)}>{joinedSubs.has(sub.name)?'Joined':'Join'}</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        )}
       </div>
 
       <AnimatePresence>
@@ -660,6 +658,7 @@ export default function App() {
             user={user}
             onClose={() => setShowCreatePost(false)}
             onSuccess={() => fetchAll()}
+            onExploreRedirect={() => { setIsExploreView(true); setSelectedSub(null); setSelectedPost(null); }}
           />
         )}
         {editPost && (

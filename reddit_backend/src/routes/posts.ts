@@ -4,11 +4,30 @@ import { db, getCached, setCache, invalidateCache } from "../db";
 import { fetchLinkPreview } from "../utils/link-preview-helper";
 
 export const postRoutes = new Elysia({ prefix: "/posts" })
-  // GET all posts
-  .get("/", async () => {
-    const cached = getCached<any>('posts:all');
+  // GET posts with optional sort, order, q, and subreddit filtering
+  .get("/", async ({ query }: { query: { sort?: string; order?: string; q?: string; subreddit?: string } }) => {
+    const sort = query.sort || 'new';
+    const order = (query.order === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+    const q = (query.q || '').trim();
+    const subreddit = (query.subreddit || '').trim();
+
+    const cacheKey = `posts:${subreddit || 'all'}:${sort}:${order}:${q}`;
+    const cached = getCached<any>(cacheKey);
     if (cached) return cached;
-    const data = await db.post.findMany({
+
+    const where: any = {};
+    if (subreddit) {
+      where.subreddit = { name: subreddit };
+    }
+    if (q) {
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { content: { contains: q, mode: 'insensitive' } }
+      ];
+    }
+
+    let posts = await db.post.findMany({
+      where,
       include: {
         author: {
           select: { id: true, username: true, karma: true, avatarColor: true, avatarUrl: true }
@@ -26,10 +45,29 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
           select: { userId: true }
         }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: order }
     });
-    setCache('posts:all', data, 10000);
-    return data;
+
+    // Score calculation helper: UP = +1, DOWN = -1
+    const getScore = (votes: { type: string }[] = []) =>
+      votes.reduce((acc, v) => acc + (v.type === 'UP' ? 1 : -1), 0);
+
+    if (sort === 'top') {
+      posts.sort((a, b) => {
+        const diff = getScore(b.votes) - getScore(a.votes);
+        return order === 'asc' ? -diff : diff;
+      });
+    } else if (sort === 'hot') {
+      posts.sort((a, b) => {
+        const scoreA = getScore(a.votes) + (a._count?.comments ?? 0) * 2;
+        const scoreB = getScore(b.votes) + (b._count?.comments ?? 0) * 2;
+        const diff = scoreB - scoreA;
+        return order === 'asc' ? -diff : diff;
+      });
+    }
+
+    setCache(cacheKey, posts, 8000);
+    return posts;
   })
 
   // GET saved/bookmarked posts for current user (before :id to avoid route conflict)
@@ -101,6 +139,22 @@ export const postRoutes = new Elysia({ prefix: "/posts" })
 
     const subreddit = await db.subreddit.findUnique({ where: { id: body.subredditId } });
     if (!subreddit) { set.status = 400; return { error: "Subreddit not found" }; }
+
+    // Enforce business rule: user must join the community before posting
+    const isMember = await db.subscription.findUnique({
+      where: {
+        userId_subredditId: { userId, subredditId: body.subredditId }
+      }
+    });
+    if (!isMember) {
+      set.status = 403;
+      return {
+        error: `You must join d/${subreddit.name} before you can post in this community`,
+        requiresJoin: true,
+        subredditName: subreddit.name,
+        subredditId: subreddit.id
+      };
+    }
 
     try {
       let linkPreview = null;
