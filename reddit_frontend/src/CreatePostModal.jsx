@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic, Code, Hash, Quote, List, Minus, Eye, Code2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -19,7 +19,23 @@ function insertAtCursor(textarea, before, after = '', defaultText = '') {
   return { value: newText, cursor: start + before.length + selected.length + after.length }
 }
 
-export default function CreatePostModal({ subreddits, joinedSubs, user, onClose, onSuccess, initialPost = null }) {
+const AttachmentThumb = React.memo(function AttachmentThumb({ att, i, onRemove }) {
+  const isImage = att.type === 'IMAGE'
+  const isVideo = att.type === 'VIDEO'
+  return (
+    <div className="att-preview-chip">
+      {isImage && <img src={att.url} alt="" className="att-thumb" />}
+      {isVideo && <video src={att.url} className="att-thumb" muted />}
+      {!isImage && !isVideo && (
+        <div className="att-chip-icon">{att.type === 'LINK' ? <LinkIcon size={14}/> : <FileText size={14}/>}</div>
+      )}
+      <span className="att-chip-name">{att.name?.split('/').pop()?.slice(0, 24) || att.type}</span>
+      <button type="button" className="att-chip-remove" onClick={() => onRemove(i)}><X size={12}/></button>
+    </div>
+  )
+})
+
+const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], joinedSubs = new Set(), user, onClose, onSuccess, initialPost = null }) {
   const isEdit = Boolean(initialPost)
   const [newPost, setNewPost] = useState({ title: '', content: '', subredditId: '' })
   const [attachments, setAttachments] = useState([]) // [{type, url, name, size, linkPreview?}]
@@ -160,29 +176,25 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
     finally { setSubmitting(false) }
   }
 
-  const AttachmentThumb = ({ att, i }) => {
-    const isImage = att.type === 'IMAGE'
-    const isVideo = att.type === 'VIDEO'
-    return (
-      <div className="att-preview-chip">
-        {isImage && <img src={att.url} alt="" className="att-thumb" />}
-        {isVideo && <video src={att.url} className="att-thumb" muted />}
-        {!isImage && !isVideo && (
-          <div className="att-chip-icon">{att.type === 'LINK' ? <LinkIcon size={14}/> : <FileText size={14}/>}</div>
-        )}
-        <span className="att-chip-name">{att.name?.split('/').pop()?.slice(0, 24) || att.type}</span>
-        <button className="att-chip-remove" onClick={() => removeAttachment(i)}><X size={12}/></button>
-      </div>
-    )
-  }
+  const sortedSubreddits = useMemo(() => {
+    return [...subreddits].sort((a, b) => (joinedSubs.has(b.name) ? 1 : 0) - (joinedSubs.has(a.name) ? 1 : 0))
+  }, [subreddits, joinedSubs])
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <motion.div
+      className="modal-backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+      onClick={onClose}
+    >
       <motion.div
         className="modal modal-wide"
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0, y: 6 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.96, opacity: 0, y: 6 }}
+        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-head">
@@ -197,8 +209,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
             required
           >
             <option value="">Choose a community *</option>
-            {[...subreddits].sort((a, b) => (joinedSubs.has(b.name) ? 1 : 0) - (joinedSubs.has(a.name) ? 1 : 0))
-              .map(s => <option key={s.id} value={s.id}>d/{s.name} {joinedSubs.has(s.name) ? '⭐' : ''}</option>)}
+            {sortedSubreddits.map(s => <option key={s.id} value={s.id}>d/{s.name} {joinedSubs.has(s.name) ? '⭐' : ''}</option>)}
           </select>
 
           {/* Title */}
@@ -254,7 +265,7 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
           {/* Attachments preview strip */}
           {attachments.length > 0 && (
             <div className="att-preview-strip">
-              {attachments.map((att, i) => <AttachmentThumb key={i} att={att} i={i} />)}
+              {attachments.map((att, i) => <AttachmentThumb key={i} att={att} i={i} onRemove={removeAttachment} />)}
             </div>
           )}
 
@@ -309,6 +320,8 @@ export default function CreatePostModal({ subreddits, joinedSubs, user, onClose,
         onInsert={handleInsertCodeSnippet}
         initialSelectedText={textareaRef.current ? textareaRef.current.value.slice(textareaRef.current.selectionStart, textareaRef.current.selectionEnd) : ''}
       />
-    </div>
+    </motion.div>
   )
-}
+})
+
+export default CreatePostModal

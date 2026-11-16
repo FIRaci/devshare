@@ -8,6 +8,9 @@ import ProfilePage from './ProfilePage'
 import MediaRenderer from './MediaRenderer'
 import MarkdownRenderer from './MarkdownRenderer'
 import CreatePostModal from './CreatePostModal'
+import CreateCommunityModal from './create-community-modal'
+import SubSettingsModal from './sub-settings-modal'
+import ActionModal from './action-modal'
 import CommentComposer from './CommentComposer'
 import UserAvatar from './UserAvatar'
 import { getToken } from './api'
@@ -271,19 +274,12 @@ export default function App() {
   const [sortBy,setSortBy]=useState('new')
   const [sortDesc,setSortDesc]=useState(true)
   const [searchQuery,setSearchQuery]=useState('')
-  const [newSub,setNewSub]=useState({name:'',description:''})
   const [leftCollapsed,setLeftCollapsed]=useState(false)
   const [mobileMenuOpen, setMobileMenuOpen]=useState(false)
-  const [actionModal,setActionModal]=useState(null) // { type: 'REPORT'|'DELETE'|'NOTE', post }
-  const [actionText,setActionText]=useState('')
-  const [actionAttachments, setActionAttachments] = useState([])
+  const [actionModal,setActionModal]=useState(null) // { type: 'REPORT'|'DELETE'|'NOTE'|..., post }
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [showSubSettings, setShowSubSettings] = useState(false)
-  const [subSettingsTab, setSubSettingsTab] = useState('info')
-  const [members, setMembers] = useState([])
-  const [subDesc, setSubDesc] = useState('')
-  const modAddRef = useRef(null)
 
   const fetchNotifs = useCallback(async () => {
     if (!user) { setNotifications([]); return; }
@@ -357,20 +353,6 @@ export default function App() {
     window.history.replaceState(null, '', '/')
   }
   useEffect(() => { openSharedPost(); window.addEventListener('hashchange', openSharedPost); return () => window.removeEventListener('hashchange', openSharedPost) }, [])
-
-  const [submittingSub,setSubmittingSub]=useState(false)
-
-  const submitSub=async(e)=>{
-    e.preventDefault(); if(submittingSub) return; setSubmittingSub(true); const tId = toast.loading('Creating...')
-    try {
-      const res=await fetch(`${API}/subreddits`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({name:newSub.name,description:newSub.description})})
-      const d=await res.json(); if(!res.ok){ toast.error(d.error??'Failed', {id: tId}); return }
-      toast.success(`d/${newSub.name} created!`, {id: tId}); setShowCreateSub(false); setNewSub({name:'',description:''})
-      joinedSubs.add(newSub.name); setJoinedSubs(new Set(joinedSubs))
-      updateUser({ subscriptions: [...(user.subscriptions||[]), { subredditId: d.id }] })
-      fetchAll()
-    } catch { toast.error('Failed to connect', {id: tId}) } finally { setSubmittingSub(false) }
-  }
 
   const toggleJoin=async(n)=>{
     if (!user) { setShowAuth(true); return; }
@@ -446,8 +428,21 @@ export default function App() {
       return
     }
     setActionModal({ type, post })
-    if (type === 'EDIT_COMMENT') { setActionText(post.content || ''); setActionAttachments(post.attachments || []) }
-    else { setActionText(''); setActionAttachments([]) }
+  }
+
+  const handleActionSuccess = ({ type, note }) => {
+    if (type === 'DELETE') {
+      setSelectedPost(null)
+      fetchAll(false)
+    } else if (type === 'DELETE_COMMENT' || type === 'EDIT_COMMENT') {
+      if (selectedPost) setSelectedPost({ ...selectedPost })
+    } else if (type === 'DELETE_SUB') {
+      navHome()
+      fetchAll(false)
+    } else if (type === 'NOTE') {
+      if (selectedPost) setSelectedPost({ ...selectedPost, communityNote: note })
+      fetchAll(false)
+    }
   }
 
   return (
@@ -475,7 +470,7 @@ export default function App() {
             </button>
             <AnimatePresence>
               {showNotifs && (
-                <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="notif-dropdown">
+                <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }} className="notif-dropdown">
                   <div className="notif-head">
                     <h4>Notifications</h4>
                     {notifications.some(n=>!n.isRead) && <button className="mark-read-btn" onClick={async()=>{
@@ -533,7 +528,7 @@ export default function App() {
                 <ChevronDown size={13}/>
               </button>
               <AnimatePresence>
-                {showUserMenu&&<motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="user-dropdown" onMouseLeave={()=>setShowUserMenu(false)}>
+                {showUserMenu&&<motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }} className="user-dropdown" onMouseLeave={()=>setShowUserMenu(false)}>
                   <button onClick={()=>{setProfileUser(user.username);setShowUserMenu(false)}}>My Profile</button>
                   <button onClick={()=>{logout();setShowUserMenu(false);toast('Logged out')}}>Log Out</button>
                 </motion.div>}
@@ -586,7 +581,7 @@ export default function App() {
                   <h2>{selectedSub?`d/${selectedSub}`:'Home'}</h2>
                   {selectedSub && (user?.role === 'ADMIN' || subreddits.find(s=>s.name===selectedSub)?.creator?.id === user?.id) && (
                     <>
-                      <button className="action-btn" onClick={() => { const sub=subreddits.find(s=>s.name===selectedSub); if(sub){setSubDesc(sub.description||'');fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>toast.error('Failed to load members'));setShowSubSettings(true)}}} style={{color:'var(--text-2)', marginLeft:'auto', display:'flex', alignItems:'center', gap:'4px', background:'transparent', border:'none', cursor:'pointer', fontSize:'13px'}}><SettingsIcon size={14}/> Settings</button>
+                      <button className="action-btn" onClick={() => setShowSubSettings(true)} style={{color:'var(--text-2)', marginLeft:'auto', display:'flex', alignItems:'center', gap:'4px', background:'transparent', border:'none', cursor:'pointer', fontSize:'13px'}}><SettingsIcon size={14}/> Settings</button>
                       <button className="action-btn" onClick={() => setActionModal({ type: 'DELETE_SUB', post: { subreddit: { name: selectedSub } } })} style={{color:'var(--red)', display:'flex', alignItems:'center', gap:'4px', background:'transparent', border:'none', cursor:'pointer', fontSize:'13px'}}><X size={14}/> Delete</button>
                     </>
                   )}
@@ -677,172 +672,35 @@ export default function App() {
             onSuccess={(updated) => { handlePostUpdated(updated); setEditPost(null) }}
           />
         )}
-        {showCreateSub&&(
-          <div className="modal-backdrop" onClick={()=>setShowCreateSub(false)}>
-            <motion.div className="modal" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
-              <div className="modal-head"><h3>Create Community</h3><button onClick={()=>setShowCreateSub(false)}><X size={18}/></button></div>
-              <form onSubmit={submitSub} className="modal-body">
-                <div className="prefix-input"><span>d/</span><input type="text" placeholder="name" value={newSub.name} onChange={e=>setNewSub(p=>({...p,name:e.target.value.replace(/\s/g,'_')}))} required minLength={3} maxLength={21}/></div>
-                <small className="input-hint">{newSub.name.length}/21</small>
-                <textarea placeholder="Description (optional)" value={newSub.description} onChange={e=>setNewSub(p=>({...p,description:e.target.value}))} rows={3}/>
-                <div className="modal-footer">
-                  <button type="button" className="btn-outline" onClick={()=>setShowCreateSub(false)}>Cancel</button>
-                  <button type="submit" className="btn-post" disabled={submittingSub}>{submittingSub ? 'Creating...' : 'Create'}</button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
+        {showCreateSub && (
+          <CreateCommunityModal
+            key="create-sub-modal"
+            onClose={() => setShowCreateSub(false)}
+            onSuccess={(data, name) => {
+              joinedSubs.add(name)
+              setJoinedSubs(new Set(joinedSubs))
+              updateUser({ subscriptions: [...(user?.subscriptions || []), { subredditId: data.id }] })
+              fetchAll()
+            }}
+          />
         )}
         {showSubSettings && selectedSub && (
-          <div className="modal-backdrop" onClick={()=>setShowSubSettings(false)}>
-            <motion.div className="modal modal-wide" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
-              <div className="modal-head">
-                <h3><SettingsIcon size={16} style={{marginRight:6}}/> d/{selectedSub} Settings</h3>
-                <button onClick={()=>setShowSubSettings(false)}><X size={18}/></button>
-              </div>
-              <div className="modal-body" style={{display:'flex', gap:0, padding:0, maxHeight:'60vh'}}>
-                <div className="settings-tabs" style={{width:140, borderRight:'1px solid var(--border)', padding:'12px 0', flexShrink:0}}>
-                  {[{id:'info', label:'Info', icon:<Edit3 size={14}/>},{id:'members', label:'Members', icon:<Users size={14}/>},{id:'moderators', label:'Moderators', icon:<Shield size={14}/>}].map(tab=>(
-                    <button key={tab.id} onClick={()=>setSubSettingsTab(tab.id)} className={`settings-tab ${subSettingsTab===tab.id?'active':''}`} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 16px',border:'none',background:subSettingsTab===tab.id?'var(--surface-hover)':'transparent',color:'var(--text)',cursor:'pointer',fontSize:13,textAlign:'left'}}>{tab.icon}{tab.label}</button>
-                  ))}
-                </div>
-                <div style={{flex:1, padding:16, overflowY:'auto'}}>
-                  {subSettingsTab === 'info' && (
-                    <div>
-                      <label style={{fontSize:12,color:'var(--text-2)',display:'block',marginBottom:6}}>Description</label>
-                      <textarea value={subDesc} onChange={e=>setSubDesc(e.target.value)} rows={4} maxLength={500} style={{width:'100%'}}/>
-                      <div className="modal-footer" style={{marginTop:12}}>
-                        <button className="btn-outline" onClick={()=>setShowSubSettings(false)}>Cancel</button>
-                        <button className="btn-post" onClick={async()=>{
-                          const tid=toast.loading('Saving...');
-                          try{const r=await fetch(`${API}/subreddits/${selectedSub}`,{method:'PATCH',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({description:subDesc})});if(r.ok){toast.success('Saved!',{id:tid});setShowSubSettings(false);fetchAll()}else throw Error()}catch{toast.error('Failed',{id:tid})}
-                        }}>Save</button>
-                      </div>
-                    </div>
-                  )}
-                  {subSettingsTab === 'members' && (
-                    <div>
-                      <h4 style={{margin:'0 0 12px',fontSize:14}}>Members ({members.length})</h4>
-                      {members.length===0?<p style={{color:'var(--text-2)',fontSize:13}}>No members yet.</p>:
-                        members.map(m=><div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
-                          <UserAvatar user={m} size={28} />
-                          <div style={{flex:1}}><span style={{fontSize:13}}>u/{m.username}</span> <span style={{fontSize:11,color:'var(--text-2)',marginLeft:4}}>({m.role})</span></div>
-                          <span style={{fontSize:11,color:'var(--text-3)'}}>{m.karma} karma</span>
-                        </div>)
-                      }
-                    </div>
-                  )}
-                  {subSettingsTab === 'moderators' && (
-                    <div>
-                      <h4 style={{margin:'0 0 12px',fontSize:14}}>Moderators</h4>
-                      {members.filter(m=>m.role==='OWNER'||m.role==='MODERATOR').map(m=><div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
-                        <UserAvatar user={m} size={28} />
-                        <div style={{flex:1}}><span style={{fontSize:13}}>u/{m.username}</span> <span style={{fontSize:11,color:'var(--text-2)',marginLeft:4}}>{m.role==='OWNER'?<><Crown size={11} style={{color:'#f59e0b',display:'inline'}}/> Owner</>:'Moderator'}</span></div>
-                        {m.role==='MODERATOR' && (user?.role==='ADMIN'||subreddits.find(s=>s.name===selectedSub)?.creator?.id===user?.id) && (
-                          <button className="btn-outline" style={{padding:'3px 8px',fontSize:11,color:'var(--red)'}} onClick={async()=>{const tid=toast.loading('Removing...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators/${m.id}`,{method:'DELETE',headers:{...bearer()}});if(r.ok){toast.success('Removed',{id:tid});fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else throw Error()}catch{toast.error('Failed',{id:tid})}}}>Remove</button>
-                        )}
-                      </div>)}
-                      {user?.role==='ADMIN'||subreddits.find(s=>s.name===selectedSub)?.creator?.id===user?.id?<div style={{marginTop:16}}>
-                        <p style={{fontSize:12,color:'var(--text-2)',marginBottom:8}}>Add a moderator by user ID:</p>
-                        <div style={{display:'flex',gap:8}}>
-                          <input ref={modAddRef} placeholder="User ID..." style={{flex:1}} onKeyDown={async(e)=>{if(e.key!=='Enter')return;const inp=e.target;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}/>
-                          <button className="btn-post" style={{padding:'6px 12px',fontSize:12}} onClick={async()=>{const inp=modAddRef.current;if(!inp)return;const uid=inp.value.trim();if(!uid)return;const tid=toast.loading('Adding...');try{const r=await fetch(`${API}/subreddits/${selectedSub}/moderators`,{method:'POST',headers:{'Content-Type':'application/json',...bearer()},body:JSON.stringify({userId:uid})});const d=await r.json();if(r.ok){toast.success(d.message,{id:tid});inp.value='';fetch(`${API}/subreddits/${selectedSub}/members`).then(r=>r.json()).then(setMembers).catch(()=>{})}else toast.error(d.error||'Failed',{id:tid})}catch{toast.error('Failed',{id:tid})}}}>Add</button>
-                        </div>
-                      </div>:null}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <SubSettingsModal
+            key={`sub-settings-${selectedSub}`}
+            subredditName={selectedSub}
+            user={user}
+            subreddits={subreddits}
+            onClose={() => setShowSubSettings(false)}
+            onSaved={() => fetchAll()}
+          />
         )}
         {actionModal && (
-          <div className="modal-backdrop" onClick={()=>setActionModal(null)}>
-            <motion.div className="modal" initial={{scale:.95,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:.95,opacity:0}} onClick={e=>e.stopPropagation()}>
-              <div className="modal-head">
-                <h3>{actionModal.type === 'REPORT' ? 'Report Post' : actionModal.type === 'DELETE' ? 'Confirm Deletion' : actionModal.type === 'DELETE_SUB' ? 'Delete Community' : actionModal.type === 'DELETE_COMMENT' ? 'Delete Comment' : actionModal.type === 'EDIT_COMMENT' ? 'Edit Comment' : 'Add Community Note'}</h3>
-                <button onClick={()=>setActionModal(null)}><X size={18}/></button>
-              </div>
-              <div className="modal-body">
-                {(actionModal.type === 'DELETE' || actionModal.type === 'DELETE_COMMENT') ? (
-                  <p>Are you sure you want to permanently delete this? This action cannot be undone.</p>
-                ) : actionModal.type === 'EDIT_COMMENT' ? (
-                  <CommentComposer
-                    onSubmit={async (content, attachments) => {
-                      const tid = toast.loading('Saving...');
-                      try {
-                        const payload = { content, ...(attachments.length ? { attachments } : {}) };
-                        const res = await fetch(`${API}/comments/${actionModal.post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify(payload) });
-                        if(res.ok) {
-                          toast.success('Comment updated', { id: tid });
-                          if(selectedPost) setSelectedPost({...selectedPost});
-                          setActionModal(null); setActionText(''); setActionAttachments([]);
-                        } else throw new Error();
-                      } catch { toast.error('Failed to save', { id: tid }); }
-                    }}
-                    onCancel={() => { setActionModal(null); setActionText(''); setActionAttachments([]); }}
-                    initialContent={actionText}
-                    initialAttachments={actionAttachments}
-                    submitLabel="Save"
-                    placeholder="Edit your comment…"
-                  />
-                ) : (
-                  <>
-                    <textarea 
-                      autoFocus
-                      placeholder={actionModal.type === 'REPORT' ? "Reason for reporting..." : "Enter your community note..."} 
-                      value={actionText} 
-                      onChange={e=>setActionText(e.target.value)} 
-                      rows={4} 
-                    />
-                  </>
-                )}
-                {actionModal.type !== 'EDIT_COMMENT' && (
-                  <div className="modal-footer" style={{ marginTop: 16 }}>
-                    <button className="btn-outline" onClick={()=>setActionModal(null)}>Cancel</button>
-                    <button 
-                      className="btn-post" 
-                      style={{ background: (actionModal.type.startsWith('DELETE')) ? 'var(--red)' : 'var(--primary)' }}
-                      onClick={async () => {
-                        const { type, post } = actionModal;
-                        const tid = toast.loading('Processing...');
-                        try {
-                          if (type === 'REPORT') {
-                            if(!actionText.trim()) return toast.error('Reason required', { id: tid });
-                            await fetch(`${API}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ type: 'POST', targetId: post.id, reason: actionText }) });
-                            toast.success('Report sent!', { id: tid });
-                          } else if (type === 'DELETE') {
-                            await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
-                            toast.success('Post deleted', { id: tid });
-                            setSelectedPost(null);
-                            fetchAll(false);
-                          } else if (type === 'DELETE_COMMENT') {
-                            await fetch(`${API}/comments/${post.id}`, { method: 'DELETE', headers: { ...bearer() }});
-                            toast.success('Comment deleted', { id: tid });
-                            if(selectedPost) setSelectedPost({...selectedPost});
-                          } else if (type === 'DELETE_SUB') {
-                            await fetch(`${API}/subreddits/${post.subreddit.name}`, { method: 'DELETE', headers: { ...bearer() }});
-                            toast.success('Community deleted', { id: tid });
-                            navHome();
-                            fetchAll(false);
-                          } else if (type === 'NOTE') {
-                            if(!actionText.trim()) return toast.error('Note required', { id: tid });
-                            await fetch(`${API}/posts/${post.id}/note`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...bearer() }, body: JSON.stringify({ communityNote: actionText }) });
-                            toast.success('Note added!', { id: tid });
-                            if(selectedPost) setSelectedPost({...selectedPost, communityNote: actionText});
-                            fetchAll(false);
-                          }
-                          setActionModal(null); setActionText('');
-                        } catch { toast.error('Action failed', { id: tid }); }
-                      }}
-                    >
-                      {(actionModal.type.startsWith('DELETE')) ? 'Delete' : 'Submit'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
+          <ActionModal
+            key="action-modal"
+            action={actionModal}
+            onClose={() => setActionModal(null)}
+            onSuccess={handleActionSuccess}
+          />
         )}
       </AnimatePresence>
     </div>

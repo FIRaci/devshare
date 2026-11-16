@@ -397,8 +397,21 @@ input,textarea,select{font-family:inherit;}
 .join-btn.joined{background:none;color:var(--primary);border:1px solid var(--primary);}
 
 /* ── Modals ─────────────────────────────────────────────────────────────────── */
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px;}
-.modal{background:var(--surface);border-radius:16px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.2);border:1px solid var(--border);}
+.modal-backdrop{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.65);
+  display:flex;align-items:center;justify-content:center;
+  z-index:500;padding:20px;
+  transform:translateZ(0);
+  will-change:opacity;
+}
+.modal{
+  background:var(--surface);border-radius:16px;width:100%;max-width:520px;
+  box-shadow:0 24px 60px rgba(0,0,0,.35);border:1px solid var(--border);
+  transform:translateZ(0);
+  will-change:transform,opacity;
+  backface-visibility:hidden;
+}
 .modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 14px;border-bottom:1px solid var(--border);}
 .modal-head h3{font-size:16px;font-weight:800;}
 .modal-head button{color:var(--text-2);border-radius:6px;padding:3px;display:flex;}
@@ -456,6 +469,8 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--r);box-shadow:var(--shadow-md);
   min-width:160px;z-index:300;overflow:hidden;
+  transform:translateZ(0);
+  will-change:transform,opacity;
 }
 .user-dropdown button{display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);transition:background .15s;}
 .user-dropdown button:hover{background:var(--primary-soft);color:var(--primary);}
@@ -464,8 +479,11 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 .auth-modal{
   display:flex;border-radius:20px;overflow:hidden;
   width:100%;max-width:720px;
-  box-shadow:0 30px 70px rgba(0,0,0,.25);
+  box-shadow:0 30px 70px rgba(0,0,0,.35);
   background:var(--surface);
+  transform:translateZ(0);
+  will-change:transform,opacity;
+  backface-visibility:hidden;
 }
 .auth-left{
   width:260px;flex-shrink:0;
@@ -714,7 +732,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   position: absolute; top: 10px; left: 10px; z-index: 2;
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 10px; border-radius: 20px;
-  background: rgba(0,0,0,.65); backdrop-filter: blur(6px);
+  background: rgba(0,0,0,.82);
   color: #fff; font-size: 11px; font-weight: 600; text-decoration: none;
   letter-spacing: .3px;
 }
@@ -743,7 +761,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 .attach-preview { position: relative; margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; max-height: 200px; display: flex; justify-content: center; background: var(--bg); }
 .attach-preview img, .attach-preview video { max-height: 200px; object-fit: contain; }
 .attach-preview.link-preview { padding: 12px; justify-content: flex-start; align-items: center; background: var(--surface); color: var(--primary); font-size: 13px; }
-.remove-attach { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(4px); }
+.remove-attach { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.75); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .remove-attach:hover { background: var(--red); }
 .attach-link-input { margin-top: 12px; }
 .attach-link-input input { width: 100%; border-radius: 6px; padding: 8px 12px; font-size: 13px; background: var(--bg); }
@@ -784,8 +802,8 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 }
 .lightbox-topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 20px; background: rgba(0,0,0,.5);
-  backdrop-filter: blur(8px); flex-shrink: 0;
+  padding: 12px 20px; background: rgba(0,0,0,.85);
+  flex-shrink: 0;
 }
 .lightbox-counter { font-size: 13px; color: rgba(255,255,255,.7); font-weight: 600; }
 .lightbox-controls { display: flex; align-items: center; gap: 8px; }
@@ -1002,6 +1020,8 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   position: absolute; top: calc(100% + 8px); right: 0;
   width: 320px; background: var(--surface); border: 1px solid var(--border);
   border-radius: 14px; box-shadow: var(--shadow-md); z-index: 400; overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform, opacity;
 }
 
 /* ── Enhanced Code Block Viewer ────────────────────────────────────────────── */

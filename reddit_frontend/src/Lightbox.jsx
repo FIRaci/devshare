@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from 'lucide-react'
 
-export default function Lightbox({ items, startIndex = 0, onClose }) {
+const Lightbox = React.memo(function Lightbox({ items, startIndex = 0, onClose }) {
   const [idx, setIdx] = useState(startIndex)
   const [zoom, setZoom] = useState(1)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -191,4 +191,6 @@ export default function Lightbox({ items, startIndex = 0, onClose }) {
       </div>
     </motion.div>
   )
-}
+})
+
+export default Lightbox

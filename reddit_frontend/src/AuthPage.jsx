@@ -4,7 +4,7 @@ import { Layers, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import toast from 'react-hot-toast'
 
-export default function AuthPage({ onClose }) {
+const AuthPage = React.memo(function AuthPage({ onClose }) {
   const { login, register } = useAuth()
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [form, setForm] = useState({ identifier: '', username: '', email: '', password: '' })
@@ -33,12 +33,20 @@ export default function AuthPage({ onClose }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <motion.div
+      className="modal-backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+      onClick={onClose}
+    >
       <motion.div
         className="auth-modal"
-        initial={{ scale: 0.93, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.93, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0, y: 6 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.96, opacity: 0, y: 6 }}
+        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         onClick={e => e.stopPropagation()}
       >
         <div className="auth-left">
@@ -108,6 +116,8 @@ export default function AuthPage({ onClose }) {
           </p>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   )
-}
+})
+
+export default AuthPage

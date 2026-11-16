@@ -13,7 +13,7 @@ const LANGUAGE_OPTIONS = [
   { id: 'rust',       label: 'Rust / C++ / Go',  icon: '⚙️', sample: 'fn main() {\n    let message = "DevShare: High Performance";\n    println!("{}", message);\n}' }
 ]
 
-export default function CodeInsertModal({ isOpen, onClose, onInsert, initialSelectedText = '' }) {
+const CodeInsertModal = React.memo(function CodeInsertModal({ isOpen, onClose, onInsert, initialSelectedText = '' }) {
   const [selectedLang, setSelectedLang] = useState('python')
   const [codeSnippet, setCodeSnippet] = useState(initialSelectedText || '')
 
@@ -36,12 +36,21 @@ export default function CodeInsertModal({ isOpen, onClose, onInsert, initialSele
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 600 }}>
+    <motion.div
+      className="modal-backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+      onClick={onClose}
+      style={{ zIndex: 600 }}
+    >
       <motion.div
         className="modal modal-code-inserter"
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0, y: 6 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.96, opacity: 0, y: 6 }}
+        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-head">
@@ -112,6 +121,8 @@ export default function CodeInsertModal({ isOpen, onClose, onInsert, initialSele
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   )
-}
+})
+
+export default CodeInsertModal
