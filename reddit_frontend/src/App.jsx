@@ -249,9 +249,27 @@ function PostDetail({ post:init, onBack, onAuthRequired, onAction, onUserClick }
 export default function App() {
   const { user, logout, updateUser } = useAuth()
   const [posts,setPosts]=useState([])
-  const [subreddits,setSubreddits]=useState([])
+  const [subreddits,setSubreddits]=useState(() => {
+    try {
+      const cached = sessionStorage.getItem('ds:subs')
+      return cached ? JSON.parse(cached) : []
+    } catch {
+      return []
+    }
+  })
   const [loading,setLoading]=useState(true)
-  const [isDark,setIsDark]=useState(false)
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('ds:theme')
+    if (saved) return saved === 'dark'
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true
+  })
+
+  useEffect(() => {
+    const theme = isDark ? 'dark' : 'light'
+    document.documentElement.setAttribute('data-theme', theme)
+    document.body.setAttribute('data-theme', theme)
+    localStorage.setItem('ds:theme', theme)
+  }, [isDark])
   const [selectedSub,setSelectedSub]=useState(null)
   const [selectedPost,setSelectedPost]=useState(null)
   const [profileUser,setProfileUser]=useState(null)
@@ -351,9 +369,14 @@ export default function App() {
   useEffect(() => {
     let active = true
     Promise.resolve().then(() => {
-      if (active) fetchPosts(true)
+      if (active) fetchAll()
     })
     return () => { active = false }
+  }, [fetchAll])
+
+  // Refresh posts when sort, direction, or search changes
+  useEffect(() => {
+    fetchPosts(true)
   }, [fetchPosts])
 
   // Handle shared post URLs: #/post/{id}

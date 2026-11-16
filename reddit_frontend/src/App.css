@@ -12,11 +12,13 @@
   --bg:           #F1F3F9;
   --surface:      #FFFFFF;
   --surface-2:    #F4F6FB;
+  --surface-hover:#E8EEF8;
   --text:         #1A1D23;
   --text-2:       #737990;
   --text-3:       #A0A6B8;
   --hover:        rgba(92,124,250,.06);
   --border:       #E3E7F0;
+  --border-hover: #CAD4E6;
   --nav-h:        56px;
   --s-w:          220px;
   --r:            10px;
@@ -24,8 +26,9 @@
   --shadow-md:    0 8px 20px rgba(0,0,0,.07);
 }
 
-[data-theme="dark"] {
+[data-theme="dark"], html[data-theme="dark"], body[data-theme="dark"] {
   --primary:      #748FFC;
+  --primary-h:    #5C7CFA;
   --primary-soft: rgba(116,143,252,.12);
   --up-color:     #748FFC;
   --down-color:   #F783AC;
@@ -34,18 +37,23 @@
   --bg:           #0E1117;
   --surface:      #161B27;
   --surface-2:    #1D2333;
+  --surface-hover:#222A3D;
   --text:         #E8ECF4;
   --text-2:       #9BA3AF;
   --text-3:       #6B7280;
   --hover:        rgba(116,143,252,.08);
   --border:       #2A3144;
+  --border-hover: #3D465E;
   --shadow:       0 1px 3px rgba(0,0,0,.3),0 4px 10px rgba(0,0,0,.2);
+  --shadow-md:    0 8px 24px rgba(0,0,0,.45);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;transition:background .3s,color .3s;}
-button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit;}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;transition:background-color .2s ease,color .2s ease;}
+button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit;outline:none;}
+button:focus{outline:none;}
+button:focus-visible{outline:2px solid var(--primary);outline-offset:1px;}
 input,textarea,select{font-family:inherit;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
