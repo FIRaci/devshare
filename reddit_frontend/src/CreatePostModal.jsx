@@ -4,6 +4,7 @@ import { X, Image as ImageIcon, Video, Link as LinkIcon, FileText, Bold, Italic,
 import toast from 'react-hot-toast'
 import MarkdownRenderer from './MarkdownRenderer'
 import CodeInsertModal from './code-insert-modal'
+import NotebookEditor from './notebook-editor'
 import { getToken } from './api'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -129,7 +130,13 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
   const toolbar = (before, after, defaultText, e) => {
     e.preventDefault()
     const ta = textareaRef.current
-    if (!ta) return
+    if (!ta) {
+      setNewPost(p => ({
+        ...p,
+        content: p.content ? `${p.content}\n\n${before}${defaultText}${after}` : `${before}${defaultText}${after}`
+      }))
+      return
+    }
     const { value, cursor } = insertAtCursor(ta, before, after, defaultText)
     setNewPost(p => ({ ...p, content: value }))
     setTimeout(() => { ta.focus(); ta.setSelectionRange(cursor, cursor) }, 0)
@@ -138,7 +145,10 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
   const handleInsertCodeSnippet = (formattedCode) => {
     const ta = textareaRef.current
     if (!ta) {
-      setNewPost(p => ({ ...p, content: (p.content || '') + formattedCode }))
+      setNewPost(p => ({
+        ...p,
+        content: p.content ? `${p.content.trim()}\n\n${formattedCode.trim()}` : formattedCode.trim()
+      }))
       return
     }
     const { value, cursor } = insertAtCursor(ta, formattedCode, '', '')
@@ -281,13 +291,9 @@ const CreatePostModal = React.memo(function CreatePostModal({ subreddits = [], j
               {newPost.content ? <MarkdownRenderer content={newPost.content} /> : <p style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>Nothing to preview yet...</p>}
             </div>
           ) : (
-            <textarea
-              ref={textareaRef}
-              placeholder="Write your post... (Markdown supported: **bold**, *italic*, `code`, ```blocks```, # headings, > quotes, - lists)"
+            <NotebookEditor
               value={newPost.content}
-              onChange={e => setNewPost(p => ({ ...p, content: e.target.value }))}
-              rows={7}
-              className="md-editor"
+              onChange={val => setNewPost(p => ({ ...p, content: val }))}
             />
           )}
 
