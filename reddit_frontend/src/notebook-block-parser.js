@@ -41,7 +41,7 @@ export function parseMarkdownToBlocks(markdown = '') {
   }
 
   // 2. Find all image tokens: ![alt](url)
-  const imageRegex = /!\[(.*?)\]\(([^\s\)]+)\)/g
+  const imageRegex = /!\[(.*?)\]\(([^\s)]+)\)/g
   while ((match = imageRegex.exec(markdown)) !== null) {
     const s = match.index
     const e = match.index + match[0].length

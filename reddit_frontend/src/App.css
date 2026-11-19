@@ -439,7 +439,7 @@ input,textarea,select{font-family:inherit;}
 }
 .modal{
   background:var(--surface);border-radius:16px;width:100%;max-width:520px;
-  max-height: 90vh;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -448,11 +448,31 @@ input,textarea,select{font-family:inherit;}
   will-change:transform,opacity;
   backface-visibility:hidden;
 }
-.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 22px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .modal-head h3{font-size:16px;font-weight:800;}
 .modal-head button{color:var(--text-2);border-radius:6px;padding:3px;display:flex;}
 .modal-head button:hover{background:var(--surface-2);}
-.modal-body{padding:18px 20px;display:flex;flex-direction:column;gap:11px;overflow-y:auto;max-height:calc(90vh - 65px);scrollbar-width:thin;}
+.modal-post-form{
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.modal-body{padding:18px 22px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1 1 auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin;}
+.modal-scroll-area::-webkit-scrollbar {
+  width: 7px;
+}
+.modal-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+.modal-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: var(--text-2);
+}
 .modal-body select,.modal-body input,.modal-body textarea{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;transition:border-color .2s;}
 .modal-body select:focus,.modal-body input:focus,.modal-body textarea:focus{outline:none;border-color:var(--primary);}
 .modal-body textarea{resize:vertical;}
@@ -460,7 +480,9 @@ input,textarea,select{font-family:inherit;}
 .prefix-input span{padding:0 10px;font-weight:800;color:var(--text-2);font-size:13px;}
 .prefix-input input{border:none;border-radius:0;flex:1;background:var(--surface-2);}
 .input-hint{font-size:10px;color:var(--text-2);margin-top:-6px;}
-.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;}
+.modal-footer{display:flex;justify-content:space-between;align-items:center;padding:12px 22px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.modal-footer-left{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-2);}
+.modal-footer-right{display:flex;align-items:center;gap:8px;}
 
 /* ── Shared buttons ─────────────────────────────────────────────────────────── */
 .btn-post{display:flex;align-items:center;gap:5px;background:var(--primary);color:white;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;transition:filter .15s,transform .15s;}
@@ -995,7 +1017,12 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 .md-inline-img { max-width: 100%; max-height: 200px; border-radius: 8px; margin: 8px 0; display: block; object-fit: contain; }
 
 /* ── Markdown editor / toolbar ─────────────────────────────────────────── */
-.modal-wide { max-width: 680px !important; }
+.modal-wide {
+  max-width: 1060px !important;
+  width: 94vw !important;
+  height: 92vh !important;
+  max-height: 92vh !important;
+}
 .md-toolbar {
   display: flex; align-items: center; gap: 2px;
   background: var(--surface-2); border: 1px solid var(--border);
@@ -1986,6 +2013,112 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   color: var(--text);
   border-top: 1px solid var(--border);
   padding-top: 14px;
+}
+
+/* ── Blog-style Post Editor & Split View ───────────────────────────────────── */
+.blog-meta-select-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.blog-community-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.blog-picker-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.blog-community-select {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+  width: auto !important;
+  cursor: pointer;
+}
+.blog-community-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.blog-title-group {
+  position: relative;
+  width: 100%;
+}
+.blog-title-input {
+  width: 100% !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  padding: 12px 64px 12px 14px !important;
+  background: var(--surface-2) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  line-height: 1.4 !important;
+  transition: all 0.2s !important;
+}
+.blog-title-input:focus {
+  border-color: var(--primary) !important;
+  background: var(--surface-1) !important;
+  box-shadow: 0 0 0 3px var(--primary-soft) !important;
+}
+.blog-title-counter {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  pointer-events: none;
+}
+.post-split-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.post-split-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.post-modal-stats-tag {
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--surface-2);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+}
+.post-modal-save-indicator {
+  font-size: 11px;
+  color: #10B981;
+  font-weight: 600;
+}
+@media (max-width: 860px) {
+  .post-split-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Developer Link Cards ──────────────────────────────────────────────────── */

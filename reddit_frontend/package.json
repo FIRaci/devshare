@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node src/__tests__/notebook-parser.test.js && node src/__tests__/modal-editor.test.js"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",
