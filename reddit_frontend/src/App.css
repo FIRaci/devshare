@@ -11,7 +11,9 @@
   --red-h:        #F03E3E;
   --bg:           #F1F3F9;
   --surface:      #FFFFFF;
+  --surface-1:    #FFFFFF;
   --surface-2:    #F4F6FB;
+  --surface-3:    #EEF2F9;
   --surface-hover:#E8EEF8;
   --text:         #1A1D23;
   --text-2:       #737990;
@@ -36,7 +38,9 @@
   --red-h:        #F03E3E;
   --bg:           #0E1117;
   --surface:      #161B27;
+  --surface-1:    #161B27;
   --surface-2:    #1D2333;
+  --surface-3:    #252C40;
   --surface-hover:#222A3D;
   --text:         #E8ECF4;
   --text-2:       #9BA3AF;
@@ -2485,11 +2489,11 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   left: 0;
   width: 320px;
   max-width: 90vw;
-  background: var(--surface-1);
+  background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-  z-index: 100;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  z-index: 1000;
   overflow: hidden;
   animation: fadeInDown 0.15s ease-out;
 }
@@ -2532,6 +2536,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   padding: 6px 8px;
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
   scrollbar-width: none;
 }
 .lang-combobox-categories::-webkit-scrollbar {
@@ -2563,6 +2568,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   overflow-y: auto;
   padding: 4px;
   scrollbar-width: thin;
+  background: var(--surface);
 }
 
 .lang-combobox-item {
@@ -2573,7 +2579,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   padding: 6px 8px;
   border-radius: 6px;
   border: none;
-  background: transparent;
+  background: var(--surface);
   color: var(--text);
   cursor: pointer;
   font-size: 12px;
@@ -2581,7 +2587,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 }
 
 .lang-combobox-item:hover {
-  background: var(--hover);
+  background: var(--surface-hover);
 }
 
 .lang-combobox-item.selected {
