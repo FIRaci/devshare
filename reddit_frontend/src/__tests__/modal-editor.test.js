@@ -18,7 +18,9 @@ function runModalEditorTests() {
   console.assert(cssContent.includes('.modal-scroll-area') || cssContent.includes('overflow-y:auto'), 'CSS test 3 failed: scroll missing')
   console.assert(cssContent.includes('.lang-combobox-container'), 'CSS test 4 failed: .lang-combobox-container missing')
   console.assert(cssContent.includes('.text-cell-toolbar'), 'CSS test 5 failed: .text-cell-toolbar missing')
-  console.log('✓ Test 1: App.css contains wide modal (1060px), combobox, and per-cell toolbar styles')
+  console.assert(cssContent.includes('.modal-body > *') && cssContent.includes('flex-shrink: 0'), 'CSS test 6 failed: .modal-body > * flex-shrink missing')
+  console.assert(cssContent.includes('.notebook-editor-container') && cssContent.includes('flex-shrink: 0'), 'CSS test 7 failed: .notebook-editor-container flex-shrink missing')
+  console.log('✓ Test 1: App.css contains wide modal (1060px), combobox, per-cell toolbar, and unclipped scroll rules')
 
   // Test 2: Verify CreatePostModal contains viewMode, PostPreviewCard, and scrollable area
   const modalPath = path.resolve(__dirname, '../CreatePostModal.jsx')

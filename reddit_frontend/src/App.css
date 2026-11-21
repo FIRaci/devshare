@@ -460,6 +460,9 @@ input,textarea,select{font-family:inherit;}
   overflow: hidden;
 }
 .modal-body{padding:18px 22px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1 1 auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin;}
+.modal-body > * {
+  flex-shrink: 0;
+}
 .modal-scroll-area::-webkit-scrollbar {
   width: 7px;
 }
@@ -1524,7 +1527,8 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-1);
-  overflow: hidden;
+  overflow: visible;
+  flex-shrink: 0;
 }
 .notebook-toolbar-header {
   display: flex;
@@ -1590,7 +1594,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 .notebook-cell {
   border: 1.5px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   background: var(--surface-2);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -1611,6 +1615,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   padding: 6px 12px;
   background: var(--surface-3, rgba(0,0,0,0.04));
   border-bottom: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
 }
 .notebook-cell-meta {
   display: flex;
@@ -1713,6 +1718,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
 .notebook-code-wrapper {
   display: flex;
   background: var(--surface-1);
+  border-radius: 0 0 6px 6px;
 }
 .notebook-line-gutter {
   width: 28px;
@@ -2094,6 +2100,7 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: start;
+  flex-shrink: 0;
 }
 .post-split-col {
   display: flex;
