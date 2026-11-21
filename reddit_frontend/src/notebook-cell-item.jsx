@@ -1,8 +1,20 @@
-import React from 'react'
-import { Lock, ArrowUp, ArrowDown, Trash2, RefreshCw, FileText, Image as ImageIcon } from 'lucide-react'
-import { getLanguageBrandIcon } from './language-icons'
-import { LANGUAGE_OPTIONS } from './code-insert-modal'
+import React, { useRef } from 'react'
+import { Lock, ArrowUp, ArrowDown, Trash2, Sparkles, Image as ImageIcon } from 'lucide-react'
+import { LanguageCombobox } from './language-combobox'
+import { TextCellToolbar } from './text-cell-toolbar'
 import { NotebookImageCell } from './notebook-image-cell'
+import { getLanguageOption } from './language-options'
+
+function wrapSelection(textarea, before, after = '', defaultText = '') {
+  if (!textarea) return null
+  const start = textarea.selectionStart ?? 0
+  const end = textarea.selectionEnd ?? 0
+  const text = textarea.value || ''
+  const selected = text.slice(start, end) || defaultText
+  const newContent = text.slice(0, start) + before + selected + after + text.slice(end)
+  const newCursor = start + before.length + selected.length + after.length
+  return { newContent, newCursor }
+}
 
 export const NotebookCellItem = React.memo(function NotebookCellItem({
   block,
@@ -14,12 +26,29 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
   onUpdateImage,
   onUploadImageFile,
   onMoveBlock,
-  onRemoveBlock
+  onRemoveBlock,
+  onAddBlockAfter
 }) {
   const isCode = block.type === 'code'
   const isImage = block.type === 'image'
   const lang = block.lang || 'python'
-  const currentOption = LANGUAGE_OPTIONS.find(l => l.id === lang) || LANGUAGE_OPTIONS[0]
+  const textareaRef = useRef(null)
+  const currentOption = getLanguageOption(lang)
+
+  const handleTextFormat = (before, after, defaultText) => {
+    const res = wrapSelection(textareaRef.current, before, after, defaultText)
+    if (res) {
+      onUpdateContent(block.id, res.newContent)
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus()
+          textareaRef.current.setSelectionRange(res.newCursor, res.newCursor)
+        }
+      }, 0)
+    } else {
+      onUpdateContent(block.id, `${block.content || ''}\n${before}${defaultText}${after}`)
+    }
+  }
 
   return (
     <div className={`notebook-cell ${isCode ? 'notebook-cell-code' : isImage ? 'notebook-cell-image' : 'notebook-cell-text'}`}>
@@ -32,18 +61,10 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
 
           {isCode ? (
             <div className="notebook-lang-select-group">
-              <span className="notebook-brand-icon">{getLanguageBrandIcon(lang, 16)}</span>
-              <select
-                className="notebook-lang-dropdown"
-                value={lang}
-                onChange={e => onUpdateLang(block.id, e.target.value)}
-              >
-                {LANGUAGE_OPTIONS.map(opt => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <LanguageCombobox
+                selectedLang={lang}
+                onSelectLang={(newLang, sample) => onUpdateLang(block.id, newLang, sample)}
+              />
               <span className="notebook-locked-pill">
                 <Lock size={11} />
                 <code>```{lang}</code>
@@ -55,10 +76,10 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
               Blog Image Section
             </span>
           ) : (
-            <span className="notebook-text-label">
-              <FileText size={13} style={{ marginRight: 4 }} />
-              Markdown Text Area
-            </span>
+            <TextCellToolbar
+              onFormat={handleTextFormat}
+              onConvertToCode={() => onAddBlockAfter?.(index, 'code')}
+            />
           )}
         </div>
 
@@ -66,12 +87,12 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
           {isCode && (
             <button
               type="button"
-              className="notebook-cell-btn"
-              title="Load template for this language"
+              className="notebook-cell-btn notebook-cell-template-btn"
+              title="Load example boilerplate code for this language"
               onClick={() => onLoadTemplate(block.id, currentOption.sample)}
             >
-              <RefreshCw size={12} />
-              <span>Template</span>
+              <Sparkles size={12} color="var(--primary)" />
+              <span>Example</span>
             </button>
           )}
 
@@ -132,6 +153,7 @@ export const NotebookCellItem = React.memo(function NotebookCellItem({
           />
         ) : (
           <textarea
+            ref={textareaRef}
             className="notebook-text-textarea"
             placeholder="Type normal markdown text, post description, headings (#), or lists (-)..."
             value={block.content || ''}

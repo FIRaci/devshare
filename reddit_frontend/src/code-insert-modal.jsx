@@ -1,23 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { X, Code2, Check, RefreshCw, Lock } from 'lucide-react'
-import { getLanguageBrandIcon } from './language-icons'
+import { getLanguageBrandIcon } from './get-language-brand-icon'
+import { LANGUAGE_OPTIONS } from './language-options'
 
-export const LANGUAGE_OPTIONS = [
-  { id: 'python',     label: 'Python',           sample: 'def hello_world():\n    print("Hello from DevShare!")\n\nhello_world()' },
-  { id: 'typescript', label: 'TypeScript / JS',  sample: 'interface User {\n  id: string;\n  name: string;\n}\n\nconst greet = (u: User): string => `Hello ${u.name}`;' },
-  { id: 'ipynb',      label: 'Jupyter Cell',     sample: '# In [1]:\nimport pandas as pd\ndf = pd.DataFrame({"framework": ["Bun", "Node"], "req_s": [120000, 45000]})\nprint(df)\n\n# Out [1]:\n#   framework   req_s\n# 0       Bun  120000\n# 1      Node   45000' },
-  { id: 'sql',        label: 'SQL Query',        sample: 'SELECT u.id, u.username, COUNT(p.id) AS post_count\nFROM "User" u\nLEFT JOIN "Post" p ON p."authorId" = u.id\nGROUP BY u.id, u.username\nORDER BY post_count DESC\nLIMIT 10;' },
-  { id: 'bash',       label: 'Bash / Terminal',  sample: '# Install and start DevShare locally\ngit clone https://github.com/FIRaci/devshare.git\ncd devshare\nbun install\nbun run dev' },
-  { id: 'json',       label: 'JSON Data',        sample: '{\n  "name": "DevShare",\n  "version": "1.0.0",\n  "techStack": ["Bun", "Elysia", "React", "Prisma"]\n}' },
-  { id: 'html',       label: 'HTML / CSS',       sample: '<div class="dev-card">\n  <h2>Hello DevShare</h2>\n  <p>Sharing code made effortless.</p>\n</div>' },
-  { id: 'rust',       label: 'Rust / C++ / Go',  sample: 'fn main() {\n    let message = "DevShare: High Performance";\n    println!("{}", message);\n}' }
-]
+export { LANGUAGE_OPTIONS }
+
+const DEFAULT_OPTION = LANGUAGE_OPTIONS[0]
 
 const CodeInsertModal = React.memo(function CodeInsertModal({ isOpen, onClose, onInsert, initialSelectedText = '' }) {
   const [selectedLang, setSelectedLang] = useState('python')
-  const defaultOption = LANGUAGE_OPTIONS[0]
-  const [codeSnippet, setCodeSnippet] = useState(initialSelectedText || defaultOption.sample)
+  const [codeSnippet, setCodeSnippet] = useState(initialSelectedText || DEFAULT_OPTION.sample)
 
   // Reset template state when modal opens
   useEffect(() => {
@@ -26,14 +19,14 @@ const CodeInsertModal = React.memo(function CodeInsertModal({ isOpen, onClose, o
         setCodeSnippet(initialSelectedText)
       } else {
         setSelectedLang('python')
-        setCodeSnippet(defaultOption.sample)
+        setCodeSnippet(DEFAULT_OPTION.sample)
       }
     }
   }, [isOpen, initialSelectedText])
 
   if (!isOpen) return null
 
-  const activeOption = LANGUAGE_OPTIONS.find(l => l.id === selectedLang) || defaultOption
+  const activeOption = LANGUAGE_OPTIONS.find(l => l.id === selectedLang) || DEFAULT_OPTION
 
   // Auto-switch template immediately when language pill is clicked
   const handleSelectLang = (opt) => {

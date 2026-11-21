@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { BookOpen, Edit3 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { NotebookCellItem } from './notebook-cell-item'
 import { NotebookInterAdd, NotebookBottomBar } from './notebook-add-controls'
+import { NotebookViewTabs } from './notebook-view-tabs'
 import { parseMarkdownToBlocks, compileBlocksToMarkdown, generateBlockId } from './notebook-block-parser'
-import { LANGUAGE_OPTIONS } from './code-insert-modal'
+import { getLanguageOption } from './language-options'
 import { getToken } from './api'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -21,31 +21,23 @@ export default function NotebookEditor({ value = '', onChange }) {
     }
   }, [value])
 
-  const notifyChange = useCallback((updatedBlocks) => {
-    setBlocks(updatedBlocks)
-    const compiled = compileBlocksToMarkdown(updatedBlocks)
-    lastEmittedValue.current = compiled
-    onChange?.(compiled)
-  }, [onChange])
-
   const handleUpdateContent = useCallback((blockId, content) => {
     setBlocks(prev => {
       const next = prev.map(b => b.id === blockId ? { ...b, content } : b)
       const compiled = compileBlocksToMarkdown(next)
       lastEmittedValue.current = compiled
-      onChange?.(compiled)
+      queueMicrotask(() => onChange?.(compiled))
       return next
     })
   }, [onChange])
 
-  // Automatically update template when switching language in cell
-  const handleUpdateLang = useCallback((blockId, lang) => {
-    const template = LANGUAGE_OPTIONS.find(l => l.id === lang)?.sample || ''
+  const handleUpdateLang = useCallback((blockId, lang, sampleCode) => {
+    const template = sampleCode || getLanguageOption(lang)?.sample || ''
     setBlocks(prev => {
       const next = prev.map(b => b.id === blockId ? { ...b, lang, content: template } : b)
       const compiled = compileBlocksToMarkdown(next)
       lastEmittedValue.current = compiled
-      onChange?.(compiled)
+      queueMicrotask(() => onChange?.(compiled))
       return next
     })
   }, [onChange])
@@ -55,7 +47,7 @@ export default function NotebookEditor({ value = '', onChange }) {
       const next = prev.map(b => b.id === blockId ? { ...b, content: sampleCode } : b)
       const compiled = compileBlocksToMarkdown(next)
       lastEmittedValue.current = compiled
-      onChange?.(compiled)
+      queueMicrotask(() => onChange?.(compiled))
       return next
     })
   }, [onChange])
@@ -65,7 +57,7 @@ export default function NotebookEditor({ value = '', onChange }) {
       const next = prev.map(b => b.id === blockId ? { ...b, ...updates } : b)
       const compiled = compileBlocksToMarkdown(next)
       lastEmittedValue.current = compiled
-      onChange?.(compiled)
+      queueMicrotask(() => onChange?.(compiled))
       return next
     })
   }, [onChange])
@@ -99,7 +91,7 @@ export default function NotebookEditor({ value = '', onChange }) {
       next.splice(targetIndex, 0, moved)
       const compiled = compileBlocksToMarkdown(next)
       lastEmittedValue.current = compiled
-      onChange?.(compiled)
+      queueMicrotask(() => onChange?.(compiled))
       return next
     })
   }, [onChange])
@@ -110,15 +102,13 @@ export default function NotebookEditor({ value = '', onChange }) {
       const next = prev.filter(b => b.id !== blockId)
       const compiled = compileBlocksToMarkdown(next)
       lastEmittedValue.current = compiled
-      onChange?.(compiled)
+      queueMicrotask(() => onChange?.(compiled))
       return next
     })
   }, [onChange])
 
-  const handleAddBlock = (index, type, lang = 'python') => {
-    const defaultSample = type === 'code'
-      ? (LANGUAGE_OPTIONS.find(l => l.id === lang)?.sample || '')
-      : ''
+  const handleAddBlock = useCallback((index, type, lang = 'python') => {
+    const defaultSample = type === 'code' ? (getLanguageOption(lang)?.sample || '') : ''
     const newBlock = {
       id: generateBlockId(),
       type,
@@ -127,9 +117,19 @@ export default function NotebookEditor({ value = '', onChange }) {
       url: type === 'image' ? '' : undefined,
       caption: type === 'image' ? '' : undefined
     }
-    const next = [...blocks]
-    next.splice(index, 0, newBlock)
-    notifyChange(next)
+    setBlocks(prev => {
+      const next = [...prev]
+      next.splice(index, 0, newBlock)
+      const compiled = compileBlocksToMarkdown(next)
+      lastEmittedValue.current = compiled
+      queueMicrotask(() => onChange?.(compiled))
+      return next
+    })
+  }, [onChange])
+
+  const handleSwitchMode = (newMode) => {
+    if (newMode === 'notebook') setBlocks(parseMarkdownToBlocks(value))
+    setMode(newMode)
   }
 
   const textCount = blocks.filter(b => b.type === 'text').length
@@ -138,35 +138,13 @@ export default function NotebookEditor({ value = '', onChange }) {
 
   return (
     <div className="notebook-editor-container">
-      {/* View Switcher Header */}
-      <div className="notebook-toolbar-header">
-        <div className="notebook-mode-pills">
-          <button
-            type="button"
-            className={`notebook-mode-btn ${mode === 'notebook' ? 'active' : ''}`}
-            onClick={() => { setBlocks(parseMarkdownToBlocks(value)); setMode('notebook') }}
-          >
-            <BookOpen size={14} />
-            <span>Notebook Cells</span>
-          </button>
-          <button
-            type="button"
-            className={`notebook-mode-btn ${mode === 'raw' ? 'active' : ''}`}
-            onClick={() => setMode('raw')}
-          >
-            <Edit3 size={14} />
-            <span>Raw Markdown</span>
-          </button>
-        </div>
-
-        <div className="notebook-stats">
-          <span>{textCount} Text</span>
-          <span className="notebook-stats-dot">•</span>
-          <span>{codeCount} Code</span>
-          <span className="notebook-stats-dot">•</span>
-          <span>{imageCount} Images</span>
-        </div>
-      </div>
+      <NotebookViewTabs
+        mode={mode}
+        onSwitchMode={handleSwitchMode}
+        textCount={textCount}
+        codeCount={codeCount}
+        imageCount={imageCount}
+      />
 
       {mode === 'raw' ? (
         <textarea
@@ -194,12 +172,11 @@ export default function NotebookEditor({ value = '', onChange }) {
                 onUploadImageFile={handleUploadImageFile}
                 onMoveBlock={handleMoveBlock}
                 onRemoveBlock={handleRemoveBlock}
+                onAddBlockAfter={(pos) => handleAddBlock(pos + 1, 'code')}
               />
-
               <NotebookInterAdd onAdd={(type, lang) => handleAddBlock(idx + 1, type, lang)} />
             </React.Fragment>
           ))}
-
           <NotebookBottomBar onAdd={(type, lang) => handleAddBlock(blocks.length, type, lang)} />
         </div>
       )}

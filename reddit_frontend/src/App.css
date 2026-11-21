@@ -2433,3 +2433,250 @@ h1,h2,h3,h4,h5,h6,p,span,label,small,li{color:inherit;}
   color: var(--text-2);
   font-size: 13px;
 }
+
+/* ==========================================================================
+   Searchable Language Combobox & Per-Cell Inline Formatting
+   ========================================================================== */
+.lang-combobox-container {
+  position: relative;
+  display: inline-block;
+}
+
+.lang-combobox-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lang-combobox-trigger:hover,
+.lang-combobox-trigger.active {
+  border-color: var(--primary);
+  background: var(--surface-2);
+}
+
+.lang-combobox-arrow {
+  transition: transform 0.2s ease;
+  color: var(--text-2);
+}
+
+.lang-combobox-arrow.open {
+  transform: rotate(180deg);
+}
+
+.lang-combobox-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 320px;
+  max-width: 90vw;
+  background: var(--surface-1);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  z-index: 100;
+  overflow: hidden;
+  animation: fadeInDown 0.15s ease-out;
+}
+
+.lang-combobox-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.lang-search-icon {
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.lang-combobox-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.lang-search-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.lang-combobox-categories {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+.lang-combobox-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.lang-category-pill {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.lang-category-pill:hover,
+.lang-category-pill.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.lang-combobox-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+}
+
+.lang-combobox-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.12s;
+}
+
+.lang-combobox-item:hover {
+  background: var(--hover);
+}
+
+.lang-combobox-item.selected {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.lang-item-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.lang-item-id {
+  font-family: monospace;
+  font-size: 10.5px;
+  color: var(--text-2);
+  opacity: 0.7;
+}
+
+.lang-item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lang-item-category {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  text-transform: capitalize;
+}
+
+.lang-combobox-empty {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+/* Text Cell Inline Toolbar */
+.text-cell-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface-1);
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.text-cell-tool-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.12s;
+  padding: 0;
+}
+
+.text-cell-tool-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.text-cell-tool-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  margin: 0 3px;
+}
+
+.text-cell-tool-code-btn {
+  width: auto !important;
+  padding: 0 6px !important;
+  gap: 3px !important;
+  color: var(--primary) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  background: var(--primary-soft) !important;
+}
+
+.text-cell-tool-code-btn:hover {
+  filter: brightness(1.1);
+}
+
+.notebook-cell-template-btn {
+  color: var(--primary) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  background: var(--primary-soft) !important;
+}
+
+.notebook-cell-template-btn:hover {
+  border-color: var(--primary) !important;
+}
+

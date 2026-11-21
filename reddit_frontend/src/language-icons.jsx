@@ -1,10 +1,5 @@
 import React from 'react'
 
-/**
- * Official SVG brand logos for programming languages and data formats.
- * Crisp vector representations matching official developer brand documentation.
- */
-
 export function PythonIcon({ size = 18, className = '' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 128 128" className={className}>
@@ -100,18 +95,20 @@ export function GoIcon({ size = 18, className = '' }) {
   )
 }
 
-/**
- * Returns the official brand icon component for a given language ID.
- */
-export function getLanguageBrandIcon(langId = '', size = 18) {
-  const l = (langId || '').toLowerCase()
-  if (['py', 'python', 'python3'].includes(l)) return <PythonIcon size={size} />
-  if (['ts', 'tsx', 'typescript', 'js', 'javascript'].includes(l)) return <TypeScriptIcon size={size} />
-  if (['ipynb', 'jupyter', 'notebook'].includes(l)) return <JupyterIcon size={size} />
-  if (['sql', 'mysql', 'postgres', 'sqlite'].includes(l)) return <SQLIcon size={size} />
-  if (['sh', 'bash', 'zsh', 'terminal', 'cmd'].includes(l)) return <TerminalIcon size={size} />
-  if (['json'].includes(l)) return <JSONIcon size={size} />
-  if (['html', 'css', 'htm'].includes(l)) return <HTMLIcon size={size} />
-  if (['go', 'golang'].includes(l)) return <GoIcon size={size} />
-  return <RustIcon size={size} />
+export function DockerIcon({ size = 18, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 128 128" className={className}>
+      <rect width="128" height="128" rx="20" fill="#1D63ED"/>
+      <path fill="#FFFFFF" d="M38 48h14v14H38zm18 0h14v14H56zm18 0h14v14H74zm-36 18h14v14H38zm18 0h14v14H56zm18 0h14v14H74zm18 0h14v14H92zM20 70c0 18 14 34 44 34 32 0 46-16 46-34H20z"/>
+    </svg>
+  )
+}
+
+export function GenericBadgeIcon({ size = 18, label = '<>', bg = '#475569', className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 128 128" className={className}>
+      <rect width="128" height="128" rx="20" fill={bg}/>
+      <text x="64" y="78" fill="#FFFFFF" fontFamily="monospace" fontSize="40" fontWeight="bold" textAnchor="middle">{label}</text>
+    </svg>
+  )
 }

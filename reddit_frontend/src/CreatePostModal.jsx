@@ -4,7 +4,6 @@ import CodeInsertModal from './code-insert-modal'
 import NotebookEditor from './notebook-editor'
 import { PostPreviewCard } from './post-preview-card'
 import { PostAttachmentSection } from './post-attachment-section'
-import { PostMarkdownToolbar } from './post-markdown-toolbar'
 import { PostModalHeader } from './post-modal-header'
 import { PostModalFooter } from './post-modal-footer'
 import { PostModalCommunityPrompt } from './post-modal-community-prompt'
@@ -33,7 +32,6 @@ const CreatePostModal = React.memo(function CreatePostModal({
     wordCount,
     readTimeMin,
     uploadFile,
-    handleToolbarFormat,
     handleInsertCodeSnippet,
     submit
   } = useCreatePostForm({ initialPost, onSuccess, onClose })
@@ -55,10 +53,6 @@ const CreatePostModal = React.memo(function CreatePostModal({
 
   const renderEditorWorkspace = () => (
     <>
-      <PostMarkdownToolbar
-        onFormat={handleToolbarFormat}
-        onOpenCodeModal={() => setShowCodeModal(true)}
-      />
       <NotebookEditor
         value={newPost.content}
         onChange={val => setNewPost(p => ({ ...p, content: val }))}
